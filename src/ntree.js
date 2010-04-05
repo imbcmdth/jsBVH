@@ -1,8 +1,8 @@
 /****************************************************************************** 
-	rtree.js - General-Purpose Non-Recursive Javascript R-Tree Library
-	Version 0.6.2, December 5st 2009
+	ntree.js - General-Purpose Non-Recursive Bounding-Volume Hierarchy Library
+	Version 0.2.1, April 3rd 2010
 
-  Copyright (c) 2009 Jon-Carlos Rivera
+  Copyright (c) 2010 Jon-Carlos Rivera
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -34,7 +34,7 @@ var NTree = function(dimensions, width){
 	// Variables to control tree-dimensions
 	var _Min_Width = 3;  // Minimum width of any node before a merge
 	var _Max_Width = 6;  // Maximum width of any node before a split
-	var _Dimensions = 2;  // Number of intervals per node
+	var _Dimensions = 2;  // Number of "interval pairs" per node
 	if(!isNaN(dimensions)){ _Dimensions = dimensions;}
 	if(!isNaN(width)){ _Min_Width = Math.floor(width/2.0); _Max_Width = width;}
 	// Start with an empty root-tree
@@ -88,13 +88,17 @@ var NTree = function(dimensions, width){
 	 * [ leaf node parent ] = _remove_subtree(rectangle, object, root)
 	 * @private
 	 */
-	var _remove_subtree = function(intervals, obj, root) {
+	var _remove_subtree = function(options) {
 		var hit_stack = []; // Contains the elements that overlap
 		var count_stack = []; // Contains the elements that overlap
 		var ret_array = [];
 		var current_depth = 1;
+		var intervals = options.intervals;
+		var obj = options.object;
+		var root = options.root;
+		var comparators = options.comparators;
 		
-		if(!intervals || !NTree.Interval.overlap_intervals(intervals, root.d))
+		if(!intervals || !comparators.overlap_intervals(intervals, root.d))
 		 return ret_array;
 
 		var ret_obj = {d:NTree.Interval.make_Intervals(_Dimensions, intervals), target:obj};
@@ -109,13 +113,13 @@ var NTree = function(dimensions, width){
 		  if("target" in ret_obj) { // We are searching for a target
 				while(i >= 0)	{
 					var ltree = tree.nodes[i];
-					if(NTree.Interval.overlap_intervals(ret_obj.d, ltree.d)) {
+					if(comparators.overlap_intervals(ret_obj.d, ltree.d)) {
 						if( (ret_obj.target && "leaf" in ltree && ltree.leaf === ret_obj.target)
-							||(!ret_obj.target && ("leaf" in ltree || NTree.Interval.contains_intervals(ltree.d, ret_obj.d)))) { // A Match !!
+							||(!ret_obj.target && ("leaf" in ltree || comparators.contains_intervals(ltree.d, ret_obj.d)))) { // A Match !!
 				  		// Yup we found a match...
 				  		// we can cancel search and start walking up the list
 				  		if("nodes" in ltree) {// If we are deleting a node not a leaf...
-				  			ret_array = _search_subtree(ltree.d, true, [], ltree);
+				  			ret_array = _search_subtree({intervals:ltree.d, return_nodes:true, return_array:[], root:ltree, comparators:comparators});
 				  			tree.nodes.splice(i, 1); 
 				  		} else {
 								ret_array = tree.nodes.splice(i, 1); 
@@ -124,7 +128,7 @@ var NTree = function(dimensions, width){
 							NTree.Interval.make_MBV(_Dimensions, tree.nodes, tree.d);
 							delete ret_obj.target;
 							if(tree.nodes.length < _Min_Width) { // Underflow
-								ret_obj.nodes = _search_subtree(tree.d, true, [], tree);
+								ret_obj.nodes = _search_subtree({intervals:tree.d, return_nodes:true, return_array:[], root:tree, comparators:comparators});
 							}
 							break;
 			  		}/*	else if("load" in ltree) { // A load
@@ -144,15 +148,15 @@ var NTree = function(dimensions, width){
 				if(tree.nodes.length > 0)
 					NTree.Interval.make_MBV(_Dimensions, tree.nodes, tree.d);
 				for(var t = 0;t<ret_obj.nodes.length;t++)
-					_insert_subtree(ret_obj.nodes[t], tree);
+					_insert_subtree({node:ret_obj.nodes[t], root:tree, comparators:comparators});
 				ret_obj.nodes.length = 0;
 				if(hit_stack.length == 0 && tree.nodes.length <= 1) { // Underflow..on root!
-					ret_obj.nodes = _search_subtree(tree.d, true, ret_obj.nodes, tree);
+					ret_obj.nodes = _search_subtree({intervals:tree.d, return_nodes:true, return_array:ret_obj.nodes, root:tree, comparators:comparators});
 					tree.nodes.length = 0;
 					hit_stack.push(tree);
 					count_stack.push(1);
 				} else if(hit_stack.length > 0 && tree.nodes.length < _Min_Width) { // Underflow..AGAIN!
-					ret_obj.nodes = _search_subtree(tree.d, true, ret_obj.nodes, tree);
+					ret_obj.nodes = _search_subtree({intervals:tree.d, return_nodes:true, return_array:ret_obj.nodes, root:tree, comparators:comparators});
 					tree.nodes.length = 0;						
 				}else {
 					delete ret_obj.nodes; // Just start resizing
@@ -170,10 +174,13 @@ var NTree = function(dimensions, width){
 	 * [ leaf node parent ] = _choose_leaf_subtree(rectangle, root to start search at)
 	 * @private
 	 */
-	var _choose_leaf_subtree = function(intervals, root) {
+	var _choose_leaf_subtree = function(options) {
 		var best_choice_index = -1;
 		var best_choice_stack = [];
 		var best_choice_area;
+		var intervals = options.intervals;
+		var root = options.root;
+		var comparators = options.comparators;
 		
 		var load_callback = function(local_tree, local_node){
 			return(function(data) { 
@@ -328,8 +335,14 @@ var NTree = function(dimensions, width){
 	 * [] = _insert_subtree(rectangle, object to insert, root to begin insertion at)
 	 * @private
 	 */
-	var _insert_subtree = function(node, root) {
+	var _insert_subtree = function(options/*node, root*/) {
 		var bc; // Best Current node
+		if( !("node" in options) ) {
+			options.node = {d:options.intervals, leaf:options.object};
+		}
+		var node = options.node;
+		var root = options.root;
+		var comparators = options.comparators;
 		// Initial insertion is special because we resize the Tree and we don't
 		// care about any overflow (seriously, how can the first object overflow?)
 		if(root.nodes.length == 0) {
@@ -341,7 +354,7 @@ var NTree = function(dimensions, width){
 		// Find the best fitting leaf node
 		// choose_leaf returns an array of all tree levels (including root)
 		// that were traversed while trying to find the leaf
-		var tree_stack = _choose_leaf_subtree(node.d, root);
+		var tree_stack = _choose_leaf_subtree({intervals:node.d, root:root, comparators:comparators});
 		var ret_obj = node;//{x:rect.x,y:rect.y,w:rect.w,h:rect.h, leaf:obj};
 	
 		// Walk back up the tree resizing and inserting as needed
@@ -400,10 +413,15 @@ var NTree = function(dimensions, width){
 	 * [ nodes | objects ] = _search_subtree(intervals, [return node data], [array to fill], root to begin search at)
 	 * @private
 	 */
-	var _search_subtree = function(intervals, return_node, return_array, root) {
+	var _search_subtree = function(options) {
 		var hit_stack = []; // Contains the elements that overlap
-	
-		if(!NTree.Interval.overlap_intervals(intervals, root.d))
+		var intervals = options.intervals;
+		var return_node = options.return_nodes;
+		var return_array = options.return_array;
+		var root = options.root;
+		var comparators = options.comparators;
+
+		if(!comparators.overlap_intervals(intervals, root.d))
 		 return(return_array);
 	
 		var load_callback = function(local_tree, local_node){
@@ -419,7 +437,7 @@ var NTree = function(dimensions, width){
 	
 			for(var i = nodes.length-1; i >= 0; i--) {
 				var ltree = nodes[i];
-			  if(NTree.Interval.overlap_intervals(intervals, ltree.d)) {
+			  if(comparators.overlap_intervals(intervals, ltree.d)) {
 			  	if("nodes" in ltree) { // Not a Leaf
 			  		hit_stack.push(ltree.nodes);
 			  	} else if("leaf" in ltree) { // A Leaf !!
@@ -463,11 +481,34 @@ var NTree = function(dimensions, width){
 	 * [ nodes | objects ] = NTree.search(intervals, [return node data], [array to fill])
 	 * @public
 	 */
-	this.search = function(intervals, return_node, return_array) {
-		if(arguments.length < 1)
-			throw "Wrong number of arguments. NT.Search requires at least a bounding set of intervals."
+	this.search = function(options /*intervals, return_node, return_array*/) {
+		if(arguments.length < 1) {
+			throw "Wrong number of arguments. search() requires an options object."
+		}
+		if( !("intervals" in options) )	{ 
+			throw "Wrong number of options. search() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+		}
+		if( options.intervals.length != _Dimensions ) {
+			throw "Wrong number of dimensions in input volume. The tree has a rank of " + _Dimensions + "-dimensions.";
+		}
+		if( !("return_nodes" in options) ) {
+			options.return_nodes = false; // obj == false for conditionals
+		}
+		if( !("return_array" in options) ) {
+			options.return_array = [];
+		}
+		if( !("comparators" in options) ) {
+			options.comparators = {};
+		}
+		if( !("overlap_intervals" in options["comparators"]) ) {
+			options.comparators.overlap_intervals = NTree.Interval.overlap_intervals; //Defaults
+		}
+		if( !("contains_intervals" in options["comparators"]) ) {
+			options.comparators.contains_intervals = NTree.Interval.contains_intervals;
+		}
+		options.root = _T; // should not ever be specified by outside
 
-		switch(arguments.length) {
+	/*	switch(arguments.length) {
 			case 1:
 				arguments[1] = false;// Add an "return node" flag - may be removed in future
 			case 2:
@@ -476,47 +517,80 @@ var NTree = function(dimensions, width){
 				arguments[3] = _T; // Add root node to end of argument list
 			default:
 				arguments.length = 4;
-		}
-		return(_search_subtree.apply(this, arguments));
+		}*/
+		return(_search_subtree.apply(this, [options]));
 	};
 		
 			
 	/* non-recursive insert function
 	 * [] = NTree.insert(intervals, object to insert)
 	 */
-	this.insert = function(intervals, obj) {
-		if(arguments.length < 2)
-			throw "Wrong number of arguments. RT.Insert requires at least a bounding rectangle and an object."
+	this.insert = function(options/*intervals, obj*/) {
+		if(arguments.length < 1) {
+			throw "Wrong number of arguments. insert() requires an options object."
+		}
+		if( !("intervals" in options) )	{
+			throw "Wrong number of options. insert() requires a set of intervals of " + _Dimensions + "-dimensions.";
+		}
+		if( options.intervals.length != _Dimensions ) {
+			throw "Wrong number of dimensions in input volume. The tree has a rank of " + _Dimensions + "-dimensions.";
+		}
+		if( !("object" in options) ) {
+			throw "Wrong number of options. insert() requires an object to insert.";
+		}
+		if( !("comparators" in options) ) {
+			options.comparators = {};
+		}
+		if( !("overlap_intervals" in options["comparators"]) ) {
+			options.comparators.overlap_intervals = NTree.Interval.overlap_intervals; //Defaults
+		}
+		if( !("contains_intervals" in options["comparators"]) ) {
+			options.comparators.contains_intervals = NTree.Interval.contains_intervals;
+		}
+		options.root = _T; // should not ever be specified by outside
 		
-		return(_insert_subtree({d:NTree.Interval.make_Intervals(_Dimensions, intervals), leaf:obj}, _T));
+		return(_insert_subtree(options/*{d:NTree.Interval.make_Intervals(_Dimensions, intervals), leaf:obj}, _T*/));
 	};
 
 	/* non-recursive function that deletes a specific
 	 * [ number ] = NTree.remove(intervals, obj)
 	 */
-	this.remove = function(intervals, obj) {
-		if(arguments.length < 1)
-			throw "Wrong number of arguments. RT.remove requires at least a bounding rectangle."
-
-		switch(arguments.length) {
-			case 1:
-				arguments[1] = false; // obj == false for conditionals
-			case 2:
-				arguments[2] = _T; // Add root node to end of argument list
-			default:
-				arguments.length = 3;
+	this.remove = function(options/*intervals, obj*/) {
+		var arguments_array = [];
+		if(arguments.length < 1) {
+			throw "Wrong number of arguments. remove() requires an options object."
 		}
-		if(arguments[1] === false) { // Do area-wide delete
+		if( !("intervals" in options) )	{
+			throw "Wrong number of options. remove() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+		}
+		if( options.intervals.length != _Dimensions ) {
+			throw "Wrong number of dimensions in input volume. The tree has a rank of " + _Dimensions + "-dimensions.";
+		}
+		if( !("object" in options) ) {
+			options.object = false; // obj == false for conditionals
+		} 
+		if( !("comparators" in options) ) {
+			options.comparators = {};
+		}
+		if( !("overlap_intervals" in options["comparators"]) ) {
+			options.comparators.overlap_intervals = NTree.Interval.overlap_intervals; //Defaults
+		}
+		if( !("contains_intervals" in options["comparators"]) ) {
+			options.comparators.contains_intervals = NTree.Interval.contains_intervals;
+		}
+		options.root = _T; // should not ever be specified by outside
+		
+		if(options.object === false) { // Do area-wide delete
 			var numberdeleted = 0;
 			var ret_array = [];
 			do { 
 				numberdeleted=ret_array.length; 
-				ret_array = ret_array.concat(_remove_subtree.apply(this, arguments));
+				ret_array = ret_array.concat(_remove_subtree.apply(this, [options]));
 			}while( numberdeleted !=  ret_array.length);
 			return ret_array;
 		}
 		else { // Delete a specific item
-			return(_remove_subtree.apply(this, arguments));
+			return(_remove_subtree.apply(this, [options]));
 		}
 	};
 

@@ -72,12 +72,12 @@ CanvasWrapper=function(canvasid,width,height){
 		obj.bounds[action] = rect;
 		obj.action[action] = true;
 		obj.layer = layers[layer];
-		if(new_obj) nt.insert(bounds,obj);
+		if(new_obj) nt.insert({intervals:bounds,object:obj});
 	}
 
 	function treeSearch(rect)
 	{
-		var results=nt.search([{a:rect.x,b:rect.w},{a:rect.y,b:rect.h}]);
+		var results=nt.search({intervals:[{a:rect.x,b:rect.w},{a:rect.y,b:rect.h}]});
 		if(results.length==0)
 			return [];
 		results.sort(sortRes);

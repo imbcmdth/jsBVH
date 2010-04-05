@@ -1,6 +1,6 @@
 <html>
 <head>
-	<title>R-Tree for Javascript - Just the numbers</title>
+	<title>N-Tree for Javascript - Just the numbers</title>
 	<script src="../libs/jquery.min.js"></script>
 	<script src="../src/ntree.js"></script>
 	<script>
@@ -13,7 +13,7 @@
 				var bounds;
 				while(i > 0) {
 					bounds =  [{a:(Math.random()*100000), b:(Math.random()*500)}, {a:(Math.random()*100000), b:(Math.random()*500)}];
-					rt.insert(bounds, "JUST A TEST OBJECT!_"+i);
+					rt.insert({intervals:bounds, object:"JUST A TEST OBJECT!_"+i});
 					i--;
 				}
 			};
@@ -22,7 +22,7 @@
 				i/=10;
 				while(i > 0) {
 					bounds = [{a:(Math.random()*95000), b:(Math.random()*1000)}, {a:(Math.random()*95000), b:(Math.random()*1000)}];
-					rt.search(bounds);
+					rt.search({intervals:bounds});
 					i--;
 				}
 			};
@@ -30,7 +30,7 @@
 				var bounds;
 				while(i > 0) {
 					bounds = [{a:(Math.random()*100000), b:(Math.random()*500)}, {a:(Math.random()*100000), b:(Math.random()*500)}];
-					rt.insert(bounds, "JUST ANOTHER TEST OBJECT!_"+i);
+					rt.insert({intervals:bounds, object:"JUST ANOTHER TEST OBJECT!_"+i});
 					i--;
 				}
 			};
@@ -39,7 +39,7 @@
 				i/=10;
 				while(i > 0) {
 					bounds = [{a:(Math.random()*95000), b:(Math.random()*1000)}, {a:(Math.random()*95000), b:(Math.random()*1000)}];
-					rt.search(bounds);
+					rt.search({intervals:bounds});
 					i--;
 				}
 			};
@@ -50,12 +50,12 @@
 				var original_i = i;
 				while(i > 0) {
 					bounds = [{a:(Math.random()*95000), b:(Math.random()*1000)}, {a:(Math.random()*95000), b:(Math.random()*1000)}];
-					output = rt.remove(bounds);
+					output = rt.remove({intervals:bounds});
 					if(output.length > 0) {
 						i-=output.length;
 						while(i < 0) {
 							t=output.pop();
-							rt.insert(t.d, t.leaf);
+							rt.insert({intervals:t.d, object:t.leaf});
 							i++;
 						}
 						deleted_set = deleted_set.concat(output);
@@ -67,7 +67,7 @@
 				i = 0;
 				while(deleted_set.length > 0) {
 					output = deleted_set.pop();
-					rt.insert(output.d, output.leaf);
+					rt.insert({intervals:output.d, object:output.leaf});
 					i++;
 				}
 			};
@@ -76,7 +76,7 @@
 				i/=10;
 				while(i > 0) {
 					bounds = [{a:(Math.random()*95000), b:(Math.random()*1000)}, {a:(Math.random()*95000), b:(Math.random()*1000)}];
-					rt.search(bounds);
+					rt.search({intervals:bounds});
 					i--;
 				}
 			};
@@ -92,7 +92,7 @@
 				test_func[ti](10000);
 				var diff = (new Date).getTime() - start;
 				$('<div>Time To Run: '+diff+'ms</div>').appendTo($("#"+results_name));
-				$('<div>Number of Elements in Tree: '+rt.search([{a:-1, b:100600},{a:-1, b:100600}]).length+'</div>').appendTo($("#"+results_name));
+				$('<div>Number of Elements in Tree: '+rt.search({intervals:[{a:-1, b:100600},{a:-1, b:100600}]}).length+'</div>').appendTo($("#"+results_name));
 				ti+=1;
 				if(ti < 7) { 
 					setTimeout(yield_some, 1000);

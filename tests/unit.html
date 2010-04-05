@@ -14,19 +14,19 @@ describe('NTree Creation', {
     		var i = 1000;
 				while(i > 0) {
 					var bounds = [{a:(Math.random()*10000), b:(Math.random()*500)}, {a:(Math.random()*10000), b:(Math.random()*500)}];
-					nt.insert(bounds, "JUST A TEST OBJECT!_"+i);
+					nt.insert({intervals:bounds, object:"JUST A TEST OBJECT!_"+i});
 					i--;
 				}
-        value_of(nt.search([{a:0,b:10600},{a:0,b:10600}]).length).should_be(1000);
+        value_of(nt.search({intervals:[{a:0,b:10600},{a:0,b:10600}]}).length).should_be(1000);
     },
     'Insert 1k More 2-D Objects': function() {
     		var i = 1000;
 				while(i > 0) {
 					var bounds = [{a:(Math.random()*10000), b:(Math.random()*500)}, {a:(Math.random()*10000), b:(Math.random()*500)}];
-					nt.insert(bounds, "JUST A TEST OBJECT!_"+i);
+					nt.insert({intervals:bounds, object:"JUST A TEST OBJECT!_"+i});
 					i--;
 				}
-        value_of(nt.search([{a:0,b:10600},{a:0,b:10600}]).length).should_be(2000);
+        value_of(nt.search({intervals:[{a:0,b:10600},{a:0,b:10600}]}).length).should_be(2000);
     }
 })
 describe('NTree Searching', {
@@ -35,7 +35,7 @@ describe('NTree Searching', {
     		var len = 0;
 				while(i > 0) {
 					var bounds = [{a:-(Math.random()*10000+501), b:(Math.random()*500)}, {a:-(Math.random()*10000+501), b:(Math.random()*500)}];
-					len += nt.search(bounds).length;
+					len += nt.search({intervals:bounds}).length;
 					i--;
 				}
         value_of(len).should_be(0);
@@ -45,7 +45,7 @@ describe('NTree Searching', {
     		var len = 0;
 				while(i > 0) {
 					var bounds = [{a:(Math.random()*10000), b:(Math.random()*500)}, {a:(Math.random()*10000), b:(Math.random()*500)}];
-					len += nt.search(bounds).length;
+					len += nt.search({intervals:bounds}).length;
 					i--;
 				}
         value_of(len).should_not_be(0);
@@ -55,12 +55,12 @@ var g_len = 0;
 describe('NTree Deletion', {
     'Delete Half the RTree': function() {
 				var bounds = [{a:5000, b:5500}, {a:0, b:10500}];
-				g_len += nt.remove(bounds).length;
+				g_len += nt.remove({intervals:bounds}).length;
         value_of(g_len).should_not_be(0);
     },
     'Delete the Other Half of the RTree': function() {
 				var bounds = [{a:0, b:5500}, {a:0, b:10500}];
-				g_len += nt.remove(bounds).length;
+				g_len += nt.remove({intervals:bounds}).length;
         value_of(g_len).should_be(2000);
     }
 })

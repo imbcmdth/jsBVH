@@ -6,12 +6,12 @@
 </head>
 <body>
 	The black outline is the tree's root node. Each pink outline is a sub-node.<br/>
-	Click on a rectangle to delete it and see the result in the R-Tree. <br/>
-	Click on any blank area to create a new rectangle and add it to the R-Tree.<br/>
+	Click on a rectangle to delete it and see the result in the N-Tree. <br/>
+	Click on any blank area to create a new rectangle and add it to the N-Tree.<br/>
 	<canvas id="game" width="1000px" height="500px" style="border:1px solid blue;"> 
 	</canvas>
 <script>
-var new_funcs = function(e){canvwrap.getTree().remove([{a:e.x,b:1},{a:e.y,b:1}]);};
+var new_funcs = function(e){canvwrap.getTree().remove({intervals:[{a:e.x,b:1},{a:e.y,b:1}]});};
 var dirty_frame = false;
 var border_width = 4.0; // default?
 
@@ -51,7 +51,6 @@ switch(parseInt((Math.random()*7.99)))
 		break;
 }
 </script>	
-<script src="20k_tree.js"></script>
 	<script type="text/javascript">
 		
 		/* I want to be able to do: (one day)
@@ -100,7 +99,7 @@ var canvwrap=(function(){
 		if(!layer) layer='main'; 
 			
 		// Get all overlapping objects from the tree
-		var local_objs = nt.search([{a:bounds.x,b:bounds.w},{a:bounds.y,b:bounds.h}]);
+		var local_objs = nt.search({intervals:[{a:bounds.x,b:bounds.w},{a:bounds.y,b:bounds.h}]});
 		var new_obj = true;
 
 		// Look for an existing object with our same ID
@@ -131,14 +130,14 @@ var canvwrap=(function(){
 		obj.func[action] = func;
 		obj.action[action] = true;
 		obj.layer = layers[layer];
-		if(new_obj) nt.insert(bounds,obj);
+		if(new_obj) nt.insert({intervals:bounds,object:obj});
 	}
 
 	function treeSearch(x,y,w,h)
 	{
 /*		if(window["console"] && console.time)
 			console.time("Searching Tree...");*/
-		var results=nt.search([{a:x,b:w},{a:y,b:h}]);
+		var results=nt.search({intervals:[{a:x,b:w},{a:y,b:h}]});
 /*		if(window["console"] && console.timeEnd)
 			console.timeEnd("Searching Tree...");*/
 
@@ -164,7 +163,7 @@ var canvwrap=(function(){
 		} else {
 			var bounds = [{a:xy.x, b:(Math.random()*10)}, {a:xy.y, b:(Math.random()*10)}];
 			var opts = {color:cols[(Math.random()*100).toFixed()%cols.length]};
-			if(nt.search(bounds).length == 0)
+			if(nt.search({intervals:bounds}).length == 0)
 			{
 				canvwrap.attachEvent(bounds,test_damnit,'mousedown', new_funcs, null, opts);
 				test_damnit++;
@@ -435,7 +434,7 @@ if( canvwrap.getTree().get_tree().nodes.length == 0 )
 		var opts = {color:cols[(Math.random()*100).toFixed()%cols.length]};
 		while(test_damnit < 20)
 		{
-			if(canvwrap.getTree().search(bounds).length == 0)
+			if(canvwrap.getTree().search({intervals:bounds}).length == 0)
 			{
 				canvwrap.attachEvent(bounds,test_damnit,'mousedown', new_funcs, null, opts);
 				test_damnit++;

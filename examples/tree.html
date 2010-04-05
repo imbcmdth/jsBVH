@@ -4,7 +4,7 @@
 <script type='text/javascript' src="../libs/excanvas.compiled.js"></script>
 <script type='text/javascript' src="../src/ntree.js"></script>
 <script type='text/javascript'>
-var temp_tree = new NTree(2);
+var temp_tree = new NTree(2, 16);
 function getMousePos(e)
 {
 	var posx = 0;
@@ -36,7 +36,7 @@ function doclick(e)
 {
 	pos = getMousePos(e);
 	console.time("Deleting a portion of "+yy+" objects within a 100x100 pixel window");
-	var t = temp_tree.remove([{a:pos[0]-500,b:1000},{a:pos[1]-500,b:1000}]);
+	var t = temp_tree.remove({intervals:[{a:pos[0]-500,b:1000},{a:pos[1]-500,b:1000}]});
 	console.timeEnd("Deleting a portion of "+yy+" objects within a 100x100 pixel window");
 	console.log("Deleted "+t.length+" objects!");
 	draw();
@@ -84,7 +84,7 @@ build_step = function()
 	var bounds = [{a:(Math.random()*12000+200), b:(Math.random()*50+1)}, {a:(Math.random()*8800+100), b:(Math.random()*50+1)}];
 	if(/*temp_tree.count(bounds)*/0 == 0)
 	{
-		temp_tree.insert(bounds, {id:"test_object_"+yy, color:"white"});
+		temp_tree.insert({intervals:bounds, object:{id:"test_object_"+yy, color:"white"}});
 		yy+=1;
 	}
 	tries += 1;
