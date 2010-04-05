@@ -458,7 +458,7 @@ var NTree = function(dimensions, width){
 	};
 
 	/* quick 'n' dirty function for plugins or manually drawing the tree
-	 * [ tree ] = RTree.get_tree(): returns the raw tree data. useful for adding
+	 * [ tree ] = NTree.get_tree(): returns the raw tree data. useful for adding
 	 * @public
 	 * !! DEPRECATED !!
 	 */
@@ -467,7 +467,7 @@ var NTree = function(dimensions, width){
 	};
 	
 	/* quick 'n' dirty function for plugins or manually loading the tree
-	 * [ tree ] = RTree.set_tree(sub-tree, where to attach): returns the raw tree data. useful for adding
+	 * [ tree ] = NTree.set_tree(sub-tree, where to attach): returns the raw tree data. useful for adding
 	 * @public
 	 * !! DEPRECATED !!
 	 */
@@ -476,6 +476,10 @@ var NTree = function(dimensions, width){
 			where = _T;
 		return(_attach_data(where, new_tree));
 	};
+	
+	this.dimensions = function() {
+		return _Dimensions;
+	}
 	
 	/* non-recursive search function 
 	 * [ nodes | objects ] = NTree.search(intervals, [return node data], [array to fill])
@@ -639,8 +643,7 @@ NTree.Interval.expand_intervals = function(a, b)	{
 	for( i = 0; i < d; i++ )
 	{
 		n = Math.min(a[i].a, b[i].a);
-		a[i].b = Math.max(a[i].a+a[i].b, b[i].a+b[i].b) - n;
-		a[i].a = n;
+		a[i].b = Math.max(a[i].a+a[i].b, b[i].a+b[i].b) - n;	a[i].a = n;
 	}
 	return a;
 };
