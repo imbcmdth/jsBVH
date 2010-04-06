@@ -31,16 +31,39 @@ var isArray = function(o) {
  * @constructor
  */
 var NTree = function(dimensions, width){
-	// Variables to control tree-dimensions
-	var _Min_Width = 3;  // Minimum width of any node before a merge
-	var _Max_Width = 6;  // Maximum width of any node before a split
-	var _Dimensions = 2;  // Number of "interval pairs" per node
-	if(!isNaN(dimensions)){ _Dimensions = dimensions;}
-	if(!isNaN(width)){ _Min_Width = Math.floor(width/2.0); _Max_Width = width;}
-	// Start with an empty root-tree
+	// Variables to control tree
 	
-	var _intervals = NTree.Interval.make_Empty(_Dimensions);
-	var _T = {d:_intervals, id:"root", nodes:[] };
+	// Number of "interval pairs" per node
+	var _Dimensions = 2;  
+	if(!isNaN(dimensions)){ _Dimensions = dimensions;}
+	
+	// Maximum width of any node before a split
+	var _Max_Width = _Dimensions * 3;  
+	if(!isNaN(width)){  _Max_Width = width; }
+	
+	// Minimum width of any node before a merge
+	var _Min_Width = Math.floor(_Max_Width/_Dimensions);
+	
+	var _make_Empty = function() {
+		var i, d = [];
+		for( i = 0; i < _Dimensions; i++ ) {
+			d.push({a:0, b:0});
+		}
+		return d;
+	};
+
+	var _make_Intervals = function(intervals, d) {
+		var i;
+		if(!isArray(d))
+			d = [];
+		for( i = 0; i < _Dimensions; i++ ) {
+			d[i] = {a:intervals[i].a, b:intervals[i].b};
+		}
+		return d;
+	};
+		
+	// Start with an empty root-tree
+	var _T = {d:_make_Empty(), id:"root", nodes:[] };
 
 	/* @function
 	 * @description Function to generate unique strings for element IDs
@@ -62,20 +85,63 @@ var NTree = function(dimensions, width){
             return idPrefix + "_" + idVal;
         }
     })();	
-    
+		/* expands intervals A to include intervals B, intervals B is untouched
+		 * [ rectangle a ] = expand_rectangle(rectangle a, rectangle b)
+		 * @static function
+		 */
+		var _expand_intervals = function(a, b)	{
+			var i, n;
+			if( a.length != _Dimensions || b.length != _Dimensions ) { return false; } // Should probably be an error.
+			for( i = 0; i < _Dimensions; i++ )
+			{
+				n = Math.min(a[i].a, b[i].a);
+				a[i].b = Math.max(a[i].a+a[i].b, b[i].a+b[i].b) - n;	
+				a[i].a = n;
+			}
+			return a;
+		};
+
+		/* generates a minimally bounding intervals for all intervals in
+		 * array "nodes". If intervals is set, it is modified into the MBR. Otherwise,
+		 * a new set of intervals is generated and returned.
+		 * [ rectangle a ] = make_MBR(rectangle array nodes, rectangle rect)
+		 * @static function
+		 */
+		var _make_MBV = function(nodes, intervals) {
+			var d;
+			if(nodes.length < 1)
+			{	
+				//throw "_make_MBV: nodes must contain at least one object to bound!";
+				return _make_Empty();
+			}
+				
+			if(!intervals) {
+				intervals = _make_Intervals(nodes[0].d);
+			}
+			else {
+				_make_Intervals(nodes[0].d, intervals);
+			}
+				
+			for(var i = nodes.length-1; i > 0; i--) {
+				_expand_intervals(intervals, nodes[i].d);
+			}
+				
+			return(intervals);
+		};
+		
 	// This is my special addition to the world of r-trees
 	// every other (simple) method I found produced crap trees
 	// this skews insertions to prefering squarer and emptier nodes
-	NTree.Interval.jons_ratio = function(dimensions, intervals, count) {
+	var _jons_ratio = function(intervals, count) {
 	  // Area of new enlarged rectangle
 		var i, sum = 0, mul = 1;
-		for( i = 0; i < dimensions; i++ )
+		for( i = 0; i < _Dimensions; i++ )
 		{
 			sum +=  intervals[i].b;
 			mul *=  intervals[i].b;
 		}
 		sum /= dimensions;
-	  var lgeo = mul / Math.pow(sum, dimensions);
+	  var lgeo = mul / Math.pow(sum, _Dimensions);
 		
 	  // return the ratio of the perimeter to the area - the closer to 1 we are, 
 	  // the more "square" or "cubic" a volume is. conversly, when approaching zero the 
@@ -84,6 +150,59 @@ var NTree = function(dimensions, width){
 	  return(mul * count / lgeo); 
 	};
 	
+	/* returns true if intervals "a" overlaps intervals "b"
+	 * [ boolean ] = overlap_intervals(intervals a, intervals b)
+	 * @static function
+	 */
+	var _make_overlap_intervals = function(a) {
+		if( a.length != _Dimensions) { return( function(a, b) { return false; } ); } // Should probably be an error.
+		var i, ret_val = true;
+		return( function(a, b) {
+			if( b.length != _Dimensions ) { ret_val = false; } // Should probably be an error.
+			for( i = 0; i < _Dimensions; i++ )
+			{
+				ret_val = ret_val && (a[i].a < (b[i].a+b[i].b) && (a[i].a+a[i].b) > b[i].a);
+			}
+			return ret_val;
+		} );
+	};
+	var _overlap_intervals = function(a, b) {
+		var i, ret_val = true;
+		if( a.length != _Dimensions || b.length != _Dimensions ) { ret_val = false; } // Should probably be an error.
+		for( i = 0; i < _Dimensions; i++ )
+		{
+			ret_val = ret_val && (a[i].a < (b[i].a+b[i].b) && (a[i].a+a[i].b) > b[i].a);
+		}
+		return ret_val;
+	};
+	
+	/* returns true if intervals "a" overlaps intervals "b"
+	 * [ boolean ] = contains_intervals(intervals a, intervals b)
+	 * @static function
+	 */
+	var _make_contains_intervals = function(a) {
+		var i, ret_val = true;
+		if( a.length != _Dimensions ) { return( function(a, b) { return false; } ); } // Should probably be an error.
+		return( function(a, b) {
+			if( b.length != _Dimensions ) { ret_val = false; } // Should probably be an error.
+			for( i = 0; i < _Dimensions; i++ )
+			{
+				ret_val = ret_val && ((a[i].a+a[i].b) <= (b[i].a+b[i].b) && a[i].a >= b[i].a);
+			}
+			return ret_val;
+		} );
+	};
+
+	var _contains_intervals = function(a, b) {
+		var i, ret_val = true;
+		if( a.length != _Dimensions || b.length != _Dimensions ) { ret_val = false; } // Should probably be an error.
+		for( i = 0; i < _Dimensions; i++ )
+		{
+				ret_val = ret_val && ((a[i].a+a[i].b) <= (b[i].a+b[i].b) && a[i].a >= b[i].a);
+		}
+		return ret_val;
+	};
+
 	/* find the best specific node(s) for object to be deleted from
 	 * [ leaf node parent ] = _remove_subtree(rectangle, object, root)
 	 * @private
@@ -101,7 +220,7 @@ var NTree = function(dimensions, width){
 		if(!intervals || !comparators.overlap_intervals(intervals, root.d))
 		 return ret_array;
 
-		var ret_obj = {d:NTree.Interval.make_Intervals(_Dimensions, intervals), target:obj};
+		var ret_obj = {d:_make_Intervals(intervals), target:obj};
 		
 		count_stack.push(root.nodes.length);
 		hit_stack.push(root);
@@ -125,7 +244,7 @@ var NTree = function(dimensions, width){
 								ret_array = tree.nodes.splice(i, 1); 
 							}
 							// Resize MBR down...
-							NTree.Interval.make_MBV(_Dimensions, tree.nodes, tree.d);
+							_make_MBV(tree.nodes, tree.d);
 							delete ret_obj.target;
 							if(tree.nodes.length < _Min_Width) { // Underflow
 								ret_obj.nodes = _search_subtree({intervals:tree.d, return_nodes:true, return_array:[], root:tree, comparators:comparators});
@@ -145,10 +264,12 @@ var NTree = function(dimensions, width){
 			} else if("nodes" in ret_obj) { // We are unsplitting
 				tree.nodes.splice(i+1, 1); // Remove unsplit node
 				// ret_obj.nodes contains a list of elements removed from the tree so far
-				if(tree.nodes.length > 0)
-					NTree.Interval.make_MBV(_Dimensions, tree.nodes, tree.d);
-				for(var t = 0;t<ret_obj.nodes.length;t++)
+				if(tree.nodes.length > 0) {
+					_make_MBV(tree.nodes, tree.d);
+				}
+				for(var t = 0;t<ret_obj.nodes.length;t++) {
 					_insert_subtree({node:ret_obj.nodes[t], root:tree, comparators:comparators});
+				}
 				ret_obj.nodes.length = 0;
 				if(hit_stack.length == 0 && tree.nodes.length <= 1) { // Underflow..on root!
 					ret_obj.nodes = _search_subtree({intervals:tree.d, return_nodes:true, return_array:ret_obj.nodes, root:tree, comparators:comparators});
@@ -162,7 +283,7 @@ var NTree = function(dimensions, width){
 					delete ret_obj.nodes; // Just start resizing
 				}
 			} else { // we are just resizing
-				NTree.Interval.make_MBV(_Dimensions, tree.nodes, tree.d);
+				_make_MBV(tree.nodes, tree.d);
 			}
 			current_depth -= 1;
 		}while(hit_stack.length > 0);
@@ -210,13 +331,13 @@ var NTree = function(dimensions, width){
   				//delete ltree.load;
   			}*/
 			  // Area of new enlarged rectangle
-			  var old_lratio = NTree.Interval.jons_ratio(_Dimensions, ltree.d, ltree.nodes.length+1);
+			  var old_lratio = _jons_ratio(ltree.d, ltree.nodes.length+1);
 
-				var copy_of_intervals = NTree.Interval.make_Intervals(_Dimensions, ltree.d);
-				NTree.Interval.expand_intervals(copy_of_intervals, intervals);
+				var copy_of_intervals = _make_Intervals(ltree.d);
+				_expand_intervals(copy_of_intervals, intervals);
 			  
 			  // Area of new enlarged rectangle
-			  var lratio = NTree.Interval.jons_ratio(_Dimensions, copy_of_intervals, ltree.nodes.length+2);
+			  var lratio = _jons_ratio(copy_of_intervals, ltree.nodes.length+2);
 			  
 			  if(best_choice_index < 0 || Math.abs(lratio - old_lratio) < best_choice_area) {
 			  	best_choice_area = Math.abs(lratio - old_lratio); best_choice_index = i;
@@ -245,8 +366,8 @@ var NTree = function(dimensions, width){
 	 */
 	var _pick_next = function(nodes, a, b) {
 	  // Area of new enlarged rectangle
-		var area_a = NTree.Interval.jons_ratio(_Dimensions, a.d, a.nodes.length+1);
-		var area_b = NTree.Interval.jons_ratio(_Dimensions, b.d, b.nodes.length+1);
+		var area_a = _jons_ratio(a.d, a.nodes.length+1);
+		var area_b = _jons_ratio(b.d, b.nodes.length+1);
 		var high_area_delta;
 		var high_area_node;
 		var lowest_growth_group;
@@ -254,13 +375,13 @@ var NTree = function(dimensions, width){
 		for(var i = nodes.length-1; i>=0;i--) {
 			var l = nodes[i];
 
-			var copy_of_intervals = NTree.Interval.make_Intervals(_Dimensions, a.d);
-			NTree.Interval.expand_intervals(copy_of_intervals, l.d);
-			var change_new_area_a = Math.abs(NTree.Interval.jons_ratio(_Dimensions, copy_of_intervals, a.nodes.length+2) - area_a);
+			var copy_of_intervals = _make_Intervals(a.d);
+			_expand_intervals(copy_of_intervals, l.d);
+			var change_new_area_a = Math.abs(_jons_ratio(copy_of_intervals, a.nodes.length+2) - area_a);
 	
-			copy_of_intervals = NTree.Interval.make_Intervals(_Dimensions, b.d);
-			NTree.Interval.expand_intervals(copy_of_intervals, l.d);
-			var change_new_area_b = Math.abs(NTree.Interval.jons_ratio(_Dimensions, copy_of_intervals, b.nodes.length+2) - area_b);
+			copy_of_intervals = _make_Intervals(b.d);
+			_expand_intervals(copy_of_intervals, l.d);
+			var change_new_area_b = Math.abs(_jons_ratio(copy_of_intervals, b.nodes.length+2) - area_b);
 
 			if( !high_area_node || !high_area_delta || Math.abs( change_new_area_b - change_new_area_a ) < high_area_delta ) {
 				high_area_node = i;
@@ -271,14 +392,14 @@ var NTree = function(dimensions, width){
 		var temp_node = nodes.splice(high_area_node, 1)[0];
 		if(a.nodes.length + nodes.length + 1 <= _Min_Width)	{
 			a.nodes.push(temp_node);
-			NTree.Interval.expand_intervals(a.d, temp_node.d);
+			_expand_intervals(a.d, temp_node.d);
 		}	else if(b.nodes.length + nodes.length + 1 <= _Min_Width) {
 			b.nodes.push(temp_node);
-			NTree.Interval.expand_intervals(b.d, temp_node.d);
+			_expand_intervals(b.d, temp_node.d);
 		}
 		else {
 			lowest_growth_group.nodes.push(temp_node);
-			NTree.Interval.expand_intervals(lowest_growth_group.d, temp_node.d);
+			_expand_intervals(lowest_growth_group.d, temp_node.d);
 		}
 	};
 
@@ -296,8 +417,12 @@ var NTree = function(dimensions, width){
 		for(i = nodes.length-2; i>=0;i--)	{
 			l = nodes[i];
 			for(d = 0; d < _Dimensions;d++)	{
-				if(l.d[d].a > nodes[highest_low[d]].d[d].a ) highest_low[d] = i;
-				else if(l.d[d].a+l.d[d].b < nodes[lowest_high[d]].d[d].a+nodes[lowest_high[d]].d[d].b) lowest_high[d] = i;
+				if(l.d[d].a > nodes[highest_low[d]].d[d].a ) {
+					highest_low[d] = i;
+				}
+				else if(l.d[d].a+l.d[d].b < nodes[lowest_high[d]].d[d].a+nodes[lowest_high[d]].d[d].b) {
+					lowest_high[d] = i;
+				}
 			}
 		}
 		
@@ -320,8 +445,8 @@ var NTree = function(dimensions, width){
 			t1 = nodes.splice(lowest_high[d], 1)[0];
 		}
 
-		return([{d:NTree.Interval.make_Intervals(_Dimensions, t1.d), nodes:[t1]},
-			      {d:NTree.Interval.make_Intervals(_Dimensions, t2.d), nodes:[t2]} ]);
+		return([{d:_make_Intervals(t1.d), nodes:[t1]},
+			      {d:_make_Intervals(t2.d), nodes:[t2]} ]);
 	};
 	
 	var _attach_data = function(node, more_tree){
@@ -346,7 +471,7 @@ var NTree = function(dimensions, width){
 		// Initial insertion is special because we resize the Tree and we don't
 		// care about any overflow (seriously, how can the first object overflow?)
 		if(root.nodes.length == 0) {
-			NTree.Interval.make_Intervals(_Dimensions, node.d, root.d);
+			_make_Intervals(node.d, root.d);
 			root.nodes.push(node);
 			return;
 		}
@@ -377,16 +502,16 @@ var NTree = function(dimensions, width){
 				// Do Insert
 				if(isArray(ret_obj)) {
 					for(var ai = 0; ai < ret_obj.length; ai++) {
-						NTree.Interval.expand_intervals(bc.d, ret_obj[ai].d);
+						_expand_intervals(bc.d, ret_obj[ai].d);
 					}
 					bc.nodes = bc.nodes.concat(ret_obj); 
 				} else {
-					NTree.Interval.expand_intervals(bc.d, ret_obj.d);
+					_expand_intervals(bc.d, ret_obj.d);
 					bc.nodes.push(ret_obj); // Do Insert
 				}
 	
 				if(bc.nodes.length <= _Max_Width)	{ // Start Resizeing Up the Tree
-					ret_obj = {d:NTree.Interval.make_Intervals(_Dimensions, bc.d)};
+					ret_obj = {d:_make_Intervals(bc.d)};
 				}	else { // Otherwise Split this Node
 					// linear_split() returns an array containing two new nodes
 					// formed from the split of the previous node's overflow
@@ -403,8 +528,8 @@ var NTree = function(dimensions, width){
 				}
 			}	else { // Otherwise Do Resize
 				//Just keep applying the new bounding rectangle to the parents..
-				NTree.Interval.expand_intervals(bc.d, ret_obj.d);
-				ret_obj = {d:NTree.Interval.make_Intervals(_Dimensions, bc.d)};
+				_expand_intervals(bc.d, ret_obj.d);
+				ret_obj = {d:_make_Intervals(bc.d)};
 			}
 		} while(tree_stack.length > 0);
 	};
@@ -489,9 +614,9 @@ var NTree = function(dimensions, width){
 		if(arguments.length < 1) {
 			throw "Wrong number of arguments. search() requires an options object."
 		}
-		if( !("intervals" in options) )	{ 
+		/*if( !("intervals" in options) )	{ 
 			throw "Wrong number of options. search() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
-		}
+		}*/
 		if( options.intervals.length != _Dimensions ) {
 			throw "Wrong number of dimensions in input volume. The tree has a rank of " + _Dimensions + "-dimensions.";
 		}
@@ -502,28 +627,30 @@ var NTree = function(dimensions, width){
 			options.return_array = [];
 		}
 		if( !("comparators" in options) ) {
-			options.comparators = {};
+			if( !("intervals" in options) ) { // If no comparator object is defined, you must define "intervals".
+				throw "Wrong number of options. search() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+			} else {
+				options.comparators = {};
+			}
 		}
 		if( !("overlap_intervals" in options["comparators"]) ) {
-			options.comparators.overlap_intervals = NTree.Interval.overlap_intervals; //Defaults
+			if( !("intervals" in options) ) { // If no default comparators are defined, you must define "intervals".
+				throw "Wrong number of options. search() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+			} else {
+				options.comparators.overlap_intervals = _overlap_intervals; //Defaults
+			}
 		}
 		if( !("contains_intervals" in options["comparators"]) ) {
-			options.comparators.contains_intervals = NTree.Interval.contains_intervals;
+			if( !("intervals" in options) ) { // If no default comparators are defined, you must define "intervals".
+				throw "Wrong number of options. search() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+			} else {
+				options.comparators.contains_intervals = _contains_intervals;
+			}
 		}
 		options.root = _T; // should not ever be specified by outside
 
-	/*	switch(arguments.length) {
-			case 1:
-				arguments[1] = false;// Add an "return node" flag - may be removed in future
-			case 2:
-				arguments[2] = []; // Add an empty array to contain results
-			case 3:
-				arguments[3] = _T; // Add root node to end of argument list
-			default:
-				arguments.length = 4;
-		}*/
 		return(_search_subtree.apply(this, [options]));
-	};
+	}; /* End of NTree.search() */
 		
 			
 	/* non-recursive insert function
@@ -533,9 +660,7 @@ var NTree = function(dimensions, width){
 		if(arguments.length < 1) {
 			throw "Wrong number of arguments. insert() requires an options object."
 		}
-		if( !("intervals" in options) )	{
-			throw "Wrong number of options. insert() requires a set of intervals of " + _Dimensions + "-dimensions.";
-		}
+
 		if( options.intervals.length != _Dimensions ) {
 			throw "Wrong number of dimensions in input volume. The tree has a rank of " + _Dimensions + "-dimensions.";
 		}
@@ -543,18 +668,31 @@ var NTree = function(dimensions, width){
 			throw "Wrong number of options. insert() requires an object to insert.";
 		}
 		if( !("comparators" in options) ) {
-			options.comparators = {};
+			if( !("intervals" in options) ) { // If no comparator object is defined, you must define "intervals".
+				throw "Wrong number of options. insert() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+			} else {
+				options.comparators = {};
+			}
 		}
 		if( !("overlap_intervals" in options["comparators"]) ) {
-			options.comparators.overlap_intervals = NTree.Interval.overlap_intervals; //Defaults
+			if( !("intervals" in options) ) { // If no default comparators are defined, you must define "intervals".
+				throw "Wrong number of options. insert() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+			} else {
+				options.comparators.overlap_intervals = _overlap_intervals; //Defaults
+			}
 		}
 		if( !("contains_intervals" in options["comparators"]) ) {
-			options.comparators.contains_intervals = NTree.Interval.contains_intervals;
+			if( !("intervals" in options) ) { // If no default comparators are defined, you must define "intervals".
+				throw "Wrong number of options. insert() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+			} else {
+				options.comparators.contains_intervals = _contains_intervals;
+			}
 		}
+
 		options.root = _T; // should not ever be specified by outside
 		
-		return(_insert_subtree(options/*{d:NTree.Interval.make_Intervals(_Dimensions, intervals), leaf:obj}, _T*/));
-	};
+		return(_insert_subtree(options/*{d:_make_Intervals(intervals), leaf:obj}, _T*/));
+	}; /* End of NTree.insert() */
 
 	/* non-recursive function that deletes a specific
 	 * [ number ] = NTree.remove(intervals, obj)
@@ -564,9 +702,7 @@ var NTree = function(dimensions, width){
 		if(arguments.length < 1) {
 			throw "Wrong number of arguments. remove() requires an options object."
 		}
-		if( !("intervals" in options) )	{
-			throw "Wrong number of options. remove() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
-		}
+
 		if( options.intervals.length != _Dimensions ) {
 			throw "Wrong number of dimensions in input volume. The tree has a rank of " + _Dimensions + "-dimensions.";
 		}
@@ -574,14 +710,27 @@ var NTree = function(dimensions, width){
 			options.object = false; // obj == false for conditionals
 		} 
 		if( !("comparators" in options) ) {
-			options.comparators = {};
+			if( !("intervals" in options) ) { // If no comparator object is defined, you must define "intervals".
+				throw "Wrong number of options. remove() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+			} else {
+				options.comparators = {};
+			}
 		}
 		if( !("overlap_intervals" in options["comparators"]) ) {
-			options.comparators.overlap_intervals = NTree.Interval.overlap_intervals; //Defaults
+			if( !("intervals" in options) ) { // If no default comparators are defined, you must define "intervals".
+				throw "Wrong number of options. remove() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+			} else {
+				options.comparators.overlap_intervals = _overlap_intervals; //Defaults
+			}
 		}
 		if( !("contains_intervals" in options["comparators"]) ) {
-			options.comparators.contains_intervals = NTree.Interval.contains_intervals;
+			if( !("intervals" in options) ) { // If no default comparators are defined, you must define "intervals".
+				throw "Wrong number of options. remove() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+			} else {
+				options.comparators.contains_intervals =_contains_intervals;
+			}
 		}
+
 		options.root = _T; // should not ever be specified by outside
 		
 		if(options.object === false) { // Do area-wide delete
@@ -596,95 +745,6 @@ var NTree = function(dimensions, width){
 		else { // Delete a specific item
 			return(_remove_subtree.apply(this, [options]));
 		}
-	};
-
-};
-
-NTree.Interval = {};
-
-/* returns true if intervals "a" overlaps intervals "b"
- * [ boolean ] = overlap_intervals(intervals a, intervals b)
- * @static function
- */
-NTree.Interval.overlap_intervals = function(a, b) {
-	var d = a.length; 
-	var i, ret_val = true;
-	if( b.length != d ) ret_val = false; // Should probably be an error.
-	for( i = 0; i < d; i++ )
-	{
-		ret_val = ret_val && (a[i].a < (b[i].a+b[i].b) && (a[i].a+a[i].b) > b[i].a);
-	}
-	return ret_val;
-};
-
-/* returns true if intervals "a" overlaps intervals "b"
- * [ boolean ] = contains_intervals(intervals a, intervals b)
- * @static function
- */
-NTree.Interval.contains_intervals = function(a, b) {
-	var d = a.length; 
-	var i, ret_val = true;
-	if( b.length != d ) ret_val = false; // Should probably be an error.
-	for( i = 0; i < d; i++ )
-	{
-		ret_val = ret_val && ((a[i].a+a[i].b) <= (b[i].a+b[i].b) && a[i].a >= b[i].a);
-	}
-	return ret_val;
-};
-
-/* expands intervals A to include intervals B, intervals B is untouched
- * [ rectangle a ] = expand_rectangle(rectangle a, rectangle b)
- * @static function
- */
-NTree.Interval.expand_intervals = function(a, b)	{
-	var d = a.length; 
-	var i, n;
-	if( b.length != d ) return false; // Should probably be an error.
-	for( i = 0; i < d; i++ )
-	{
-		n = Math.min(a[i].a, b[i].a);
-		a[i].b = Math.max(a[i].a+a[i].b, b[i].a+b[i].b) - n;	a[i].a = n;
-	}
-	return a;
-};
-
-/* generates a minimally bounding intervals for all intervals in
- * array "nodes". If intervals is set, it is modified into the MBR. Otherwise,
- * a new set of intervals is generated and returned.
- * [ rectangle a ] = make_MBR(rectangle array nodes, rectangle rect)
- * @static function
- */
-NTree.Interval.make_MBV = function(dimensions, nodes, intervals) {
-	var d;
-	if(nodes.length < 1)
-	{	
-		//throw "make_MBR: nodes must contain at least one rectangle!";
-		return NTree.Interval.make_Empty(dimensions);
-	}
-		
-	if(!intervals)
-		intervals = NTree.Interval.make_Intervals(dimensions, nodes[0].d);
-	else
-		NTree.Interval.make_Intervals(dimensions, nodes[0].d, intervals);
-		
-	for(var i = nodes.length-1; i > 0; i--)
-		NTree.Interval.expand_intervals(intervals, nodes[i].d);
-		
-	return(intervals);
-};
-
-NTree.Interval.make_Empty = function(dimensions) {
-	var i, d = new Array(dimensions);
-	for( i = 0; i < dimensions; i++ )
-		d[i] = {a:0, b:0};
-	return d;
-};
-
-NTree.Interval.make_Intervals = function(dimensions, intervals, d) {
-	var i;
-	if(!isArray(d))
-		d = new Array(dimensions);
-	for( i = 0; i < dimensions; i++ )
-		d[i] = {a:intervals[i].a, b:intervals[i].b};
-	return d;
-};
+	}; /* End of NTree.remove() */
+	
+}; /* End of NTree */
