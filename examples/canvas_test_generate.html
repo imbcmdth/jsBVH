@@ -302,7 +302,7 @@ function draw_nodes(context)
 //		}
 		return ret_val;
 	};
-	custom_comparators.contains_intervals = NTree.Interval.contains_intervals;
+	//custom_comparators.contains_intervals = NTree.Interval.contains_intervals;
 	
 	var elements = canvwrap.getTree().search({intervals:[{a:canv_off_x,b:context.canvas.width/zoom},{a:canv_off_y, b:context.canvas.height/zoom}, {a:0,b:256}], return_nodes:true, comparators:custom_comparators});
 	var to_draw = elements.length;
