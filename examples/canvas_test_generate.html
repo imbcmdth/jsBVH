@@ -289,20 +289,16 @@ function draw_nodes(context)
 		var d = a.length; 
 		var i, ret_val = true;
 		if( b.length != d ) ret_val = false; // Should probably be an error.
-//		for( i = 0; i < d; i++ )
-//		{
-			var z = 1+((b[2].a+b[2].b)/192);
-			var a0b = a[0].b * z;
-			var a0a = a[0].a - (a0b - a[0].b) / 2;
-			var a1b = a[1].b * z;
-			var a1a = a[1].a - (a1b - a[1].b) / 2;
-			ret_val = ret_val && (a0a < (b[0].a+b[0].b) && (a0a+a0b) > b[0].a);
-			ret_val = ret_val && (a1a < (b[1].a+b[1].b) && (a1a+a1b) > b[1].a);
-			ret_val = ret_val && (a[2].a < (b[2].a+b[2].b) && (a[2].a+a[2].b) > b[2].a);
-//		}
+		var z = 1+((b[2].a+b[2].b)/192);
+		var a0b = a[0].b * z;
+		var a0a = a[0].a - (a0b - a[0].b) / 2;
+		var a1b = a[1].b * z;
+		var a1a = a[1].a - (a1b - a[1].b) / 2;
+		ret_val = ret_val && (a0a < (b[0].a+b[0].b) && (a0a+a0b) > b[0].a);
+		ret_val = ret_val && (a1a < (b[1].a+b[1].b) && (a1a+a1b) > b[1].a);
+		ret_val = ret_val && (a[2].a < (b[2].a+b[2].b) && (a[2].a+a[2].b) > b[2].a);
 		return ret_val;
 	};
-	//custom_comparators.contains_intervals = NTree.Interval.contains_intervals;
 	
 	var elements = canvwrap.getTree().search({intervals:[{a:canv_off_x,b:context.canvas.width/zoom},{a:canv_off_y, b:context.canvas.height/zoom}, {a:0,b:256}], return_nodes:true, comparators:custom_comparators});
 	var to_draw = elements.length;
