@@ -4,28 +4,32 @@
 	<script type='text/javascript' src="../libs/jquery.min.js"></script>
 </head>
 <body>
-<h1>R-Tree Library for Javascript</h1>
+<h1>N-Tree (a <a href="http://en.wikipedia.org/wiki/Bounding_volume_hierarchy">BVH</a>) Library for Javascript</h1>
 <h3>by <a href="mailto:imbcmdth@hotmail.com">Jon-Carlos Rivera</a></h3>
 <h4>Released under an MIT license</h4>
 <form style="float:right;"action="https://www.paypal.com/cgi-bin/webscr" method="post"><input type="hidden" name="cmd" value="_s-xclick"><input type="hidden" name="hosted_button_id" value="10326004"><input type="image" src="https://www.paypal.com/en_US/i/btn/btn_donateCC_LG.gif" border="0" name="submit" alt="PayPal - The safer, easier way to pay online!"><img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1"></form>
-<p>This page contains examples of my N-Tree Library (<a href="ntree.js">ntree.js</a>) for Javascript. The library is an open-source, high performance, and <b>non-recursive</b> implementation of a multidimensional N-Tree volume indexing data structure.</p>
+<p>This page contains examples of my N-Tree Library (<a href="../src/ntree.js">ntree.js</a>) for Javascript. The library is an open-source, high performance, and <b>non-recursive</b> implementation of a multidimensional <a href="http://en.wikipedia.org/wiki/Bounding_volume_hierarchy">Bounding Volume Hierarchy</a> data structure.</p>
 <p>To contribute to, watch, or fork the N-Tree Library, see the project on GitHub at <a href="http://github.com/imbcmdth/NTree">http://github.com/imbcmdth/NTree</a></p>
-<h3>Tests:</h3>
+<h3>NEW Tests:</h3>
+<h4><a href="..\Flog\Sphereflake%20-%207381.htm">SphereFlake RayTracer!!</a></h4>
+<p>Uses N-Tree to accelerate the Ray Tracing of a SphereFlake made of over 7k spheres!</p>
+<h4><a href="simple_test.html">Ray Playground 2D</a></h4>
+<p>A simple interactive example of the N-Tree. Shows an interactive Ray-BVH tests. Great for understanding BVH as used in ray tracing.</p>
+<h4><a href="canvas_test_generate_3-d.html">Super-Harcore Example in 3D</a></h4>
+<p><b>ONLY run on Opera, Chrome, Safari, or Firefox 3.6 nightlies!</b><br/>
+This test generates 20k dense non-overlapping rectangles of various size and color.</p>
+<h3>Old Tests:</h3>
 <h4><a href="..\tests\unit.html">Simple Unit Tests</a></h4>
-<p>Preliminary unit testing examples.
-</p>
-<h4><a href="simple_test.html">Simple Playground</a></h4>
-<p>A simple interactive example of the R-Tree. Great for understanding R-Tree principles.
-</p>
-<h4><a href="tree.html">Area Effect</a></h4>
+<p>Preliminary unit testing examples.</p>
+<!--<h4><a href="tree.html">Area Effect</a></h4>
 <p>Generates a group of 6500 random small non-overlapping rectangles and shows the resultant tree-structure using a &quot;heat-map&quot;.
-</p>
+</p>-->
 <h4><a href="numbers.html">Benchmark</a></h4>
-<p>Inserts 10k objects. Performs some searches. Inserts another 10k objects. Performs some searches. Deletes and reinserts some objects. Performs some final searches.
-<a href="rtree_benchmark.png">Screenshot of various benchmark results</a></p>
+<p>Inserts 10k objects. Performs some searches. Inserts another 10k objects. Performs some searches. Deletes and reinserts some objects. Performs some final searches.</p>
+<h4><a href="numbers_3-d.html">Benchmark in 3D</a></h4>
+<p>Same benchmark as above but inserting and searching through a 3-dimensional volume instead of a 2-dimensional case.</p>
 <h4><a href="canvas_test_generate.html">Super-Harcore Example</a></h4>
 <p><b>ONLY run on Opera, Chrome, Safari, or Firefox 3.6 nightlies!</b><br/>
-This test generates 20k dense non-overlapping rectangles of various size and color.
-</p>
+This test generates 20k dense non-overlapping rectangles of various size and color.</p>
 </body>
 </html>

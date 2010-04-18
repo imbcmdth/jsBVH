@@ -52,8 +52,9 @@ var yy_target=6500;
  */
 doload = function()
 {
-	var tcanvas = document.getElementById("tree_canvas");
-	if(tcanvas.addEventListener)
+	var tcanvas = document.getElementById("treecanvas");
+	
+	if(tcanvas && tcanvas.addEventListener)
 		tcanvas.addEventListener("click", doclick, false);
 	
 	console.time("Adding "+yy_target+" non-overlapping objects to the R-Tree");
@@ -126,21 +127,23 @@ function draw_nodes(context)
 }
 
 function draw(){
-	var tcanvas = document.getElementById("tree_canvas");
-	var ctx = tcanvas.getContext("2d");
-	ctx.clearRect(0, 0, tcanvas.width, tcanvas.height)
-	ctx.fillStyle = "rgb(0,0,0)";
-
+	var tcanvas = document.getElementById("treecanvas");
+	if(tcanvas) {
+		var ctx = tcanvas.getContext("2d");
+		ctx.clearRect(0, 0, tcanvas.width, tcanvas.height)
+		ctx.fillStyle = "rgb(0,0,0)";
 	
-	ctx.strokeStyle = "rgb(0,150,0)";
-	var drawn = draw_nodes(ctx);
-
-	ctx.clearRect(0, 0, 160, 15);
-	if("fillText" in ctx) ctx.fillText("Current # of Elements: " + drawn, 	10, 10);
+		
+		ctx.strokeStyle = "rgb(0,150,0)";
+		var drawn = draw_nodes(ctx);
+	
+		ctx.clearRect(0, 0, 160, 15);
+		if("fillText" in ctx) ctx.fillText("Current # of Elements: " + drawn, 	10, 10);
+	}
 }
 </script>
 <body onload="doload()">
 	This test generates 6500 small and non-overlapping rectangles. Each left mouse click searches a 100x100 pixel window deleting any elements it funds. The time taken is reported in the firebug-lite console.<br/>
-	<canvas id="tree_canvas" width="1250" height="900" style="border:1px solid #000;">
+	<canvas id="treecanvas" width="1250" height="900" style="border:1px solid #000;">Hey
 	</canvas>
 </body>

@@ -27,7 +27,7 @@ var isArray = function(o) {
 };
 
 /**
- * RTree - A simple r-tree structure for great results.
+ * NTree - A simple n-tree structure for great results.
  * @constructor
  */
 var NTree = function(dimensions, width){
@@ -63,71 +63,71 @@ var NTree = function(dimensions, width){
 	};
 		
 	// Start with an empty root-tree
-	var _T = {d:_make_Empty(), id:"root", nodes:[] };
+	var _T = { d:_make_Empty(), id:"root", nodes:[] };
 
 	/* @function
 	 * @description Function to generate unique strings for element IDs
 	 * @param {String} n			The prefix to use for the IDs generated.
 	 * @return {String}				A guarenteed unique ID.
 	 */
-    var _name_to_id = (function() {
-        // hide our idCache inside this closure
-        var idCache = {};
+  var _name_to_id = (function() {
+      // hide our idCache inside this closure
+      var idCache = {};
 
-        // return the api: our function that returns a unique string with incrementing number appended to given idPrefix
-        return function(idPrefix) {
-            var idVal = 0;
-            if(idPrefix in idCache) {
-                idVal = idCache[idPrefix]++;
-            } else {
-                idCache[idPrefix] = 0;
-            }
-            return idPrefix + "_" + idVal;
-        }
-    })();	
-		/* expands intervals A to include intervals B, intervals B is untouched
-		 * [ rectangle a ] = expand_rectangle(rectangle a, rectangle b)
-		 * @static function
-		 */
-		var _expand_intervals = function(a, b)	{
-			var i, n;
-			if( a.length != _Dimensions || b.length != _Dimensions ) { return false; } // Should probably be an error.
-			for( i = 0; i < _Dimensions; i++ )
-			{
-				n = Math.min(a[i].a, b[i].a);
-				a[i].b = Math.max(a[i].a+a[i].b, b[i].a+b[i].b) - n;	
-				a[i].a = n;
-			}
-			return a;
-		};
+      // return the api: our function that returns a unique string with incrementing number appended to given idPrefix
+      return function(idPrefix) {
+          var idVal = 0;
+          if(idPrefix in idCache) {
+              idVal = idCache[idPrefix]++;
+          } else {
+              idCache[idPrefix] = 0;
+          }
+          return idPrefix + "_" + idVal;
+      }
+  })();	
+	/* expands intervals A to include intervals B, intervals B is untouched
+	 * [ rectangle a ] = expand_rectangle(rectangle a, rectangle b)
+	 * @static function
+	 */
+	var _expand_intervals = function(a, b)	{
+		var i, n;
+		if( a.length != _Dimensions || b.length != _Dimensions ) { return false; } // Should probably be an error.
+		for( i = 0; i < _Dimensions; i++ )
+		{
+			n = Math.min(a[i].a, b[i].a);
+			a[i].b = Math.max(a[i].a+a[i].b, b[i].a+b[i].b) - n;	
+			a[i].a = n;
+		}
+		return a;
+	};
 
-		/* generates a minimally bounding intervals for all intervals in
-		 * array "nodes". If intervals is set, it is modified into the MBR. Otherwise,
-		 * a new set of intervals is generated and returned.
-		 * [ rectangle a ] = make_MBR(rectangle array nodes, rectangle rect)
-		 * @static function
-		 */
-		var _make_MBV = function(nodes, intervals) {
-			var d;
-			if(nodes.length < 1)
-			{	
-				//throw "_make_MBV: nodes must contain at least one object to bound!";
-				return _make_Empty();
-			}
-				
-			if(!intervals) {
-				intervals = _make_Intervals(nodes[0].d);
-			}
-			else {
-				_make_Intervals(nodes[0].d, intervals);
-			}
-				
-			for(var i = nodes.length-1; i > 0; i--) {
-				_expand_intervals(intervals, nodes[i].d);
-			}
-				
-			return(intervals);
-		};
+	/* generates a minimally bounding intervals for all intervals in
+	 * array "nodes". If intervals is set, it is modified into the MBV. Otherwise,
+	 * a new set of intervals is generated and returned.
+	 * [ rectangle a ] = make_MBR(rectangle array nodes, rectangle rect)
+	 * @static function
+	 */
+	var _make_MBV = function(nodes, intervals) {
+		var d;
+		if(nodes.length < 1)
+		{	
+			//throw "_make_MBV: nodes must contain at least one object to bound!";
+			return _make_Empty();
+		}
+			
+		if(!intervals) {
+			intervals = _make_Intervals(nodes[0].d);
+		}
+		else {
+			_make_Intervals(nodes[0].d, intervals);
+		}
+			
+		for(var i = nodes.length-1; i > 0; i--) {
+			_expand_intervals(intervals, nodes[i].d);
+		}
+			
+		return(intervals);
+	};
 		
 	// This is my special addition to the world of r-trees
 	// every other (simple) method I found produced crap trees
@@ -534,7 +534,183 @@ var NTree = function(dimensions, width){
 		} while(tree_stack.length > 0);
 	};
 
-	/* non-recursive internal search function 
+    this.envelope = function(){
+        if(_T && "d" in _T) {
+            // Return a copy
+            return _make_Intervals(_T.d);
+        } else {
+            return _make_Empty();
+        }
+    }
+    
+    // Intersect with overall tree bounding-box
+    // Returns a segment contained within the pointing box
+    var _intersect_Intervals = function(ray, intervals) {
+        if( !intervals ) {
+            if( _T && "d" in _T ) {
+                intervals = _T.d; // By default, use the scene bounding box
+            } else {
+                return false;
+            }
+        }
+        var i, j;
+        var parameters = [[],[]];
+        // inv_direction and sign can be pre-computed per ray
+        var inv_direction = [];
+        var sign = [];
+
+        // Initialize values
+        for( i = 0; i < _Dimensions; i++ ){
+            parameters[0].push(intervals[i].a);
+            parameters[1].push(intervals[i].a + intervals[i].b);
+
+            j = 1 / ray[i].b;
+            inv_direction.push(j);
+            sign.push((j <= 0)?1:0);
+        }
+
+        var omin, omax, tmin, tmax;
+        var tmin_a, tmin_b, tmax_a, tmax_b;
+
+        omin = (parameters[sign[0]][0] - ray[0].a) * inv_direction[0];
+        omax = (parameters[1-sign[0]][0] - ray[0].a) * inv_direction[0];
+
+    //if(isNaN(omin) || isNaN(omax)) throw "o1: NAN!";
+
+    /*    tmin_a = Math.min(omin, Infinity); tmin_b = Math.max(omin, -Infinity);
+        tmax_a = Math.min(omax, Infinity); tmax_b = Math.max(omax, -Infinity);
+        omin = Math.min(tmin_a, tmin_b);
+        omax = Math.max(tmax_a, tmax_b);    */
+
+
+        for( i = 1; i < _Dimensions; i++ ) {
+            tmin = (parameters[sign[i]][i] - ray[i].a) * inv_direction[i];
+            tmax = (parameters[1-sign[i]][i] - ray[i].a) *inv_direction[i];
+
+    //if(isNaN(tmin) || isNaN(tmax) || isNaN(inv_direction[i])) throw "t: NAN!";
+
+    /*        tmin_a = Math.min(tmin, Infinity); tmin_b = Math.max(tmin, -Infinity);
+            tmax_a = Math.min(tmax, Infinity); tmax_b = Math.max(tmax, -Infinity);
+            tmin = Math.min(tmin_a, tmin_b);
+            tmax = Math.max(tmax_a, tmax_b);  */
+
+            if ( (omin > tmax) || (tmin > omax) ) {
+                return false;
+            }
+            if (tmin > omin) {
+                omin = tmin;
+            }
+            if (tmax < omax) {
+                omax = tmax;
+            }
+    //if(isNaN(omin) || isNaN(omax)) throw "o2: NAN!";
+        }
+
+        if( omin >= Infinity || omax <= -Infinity )
+        {
+      //      throw "Gevalt!";
+            return false;
+        }
+       // return true;
+        var rs = _make_Empty();
+
+        for( i = 0; i < _Dimensions; i++ ) {
+            rs[i].a = ray[i].a + ray[i].b * omin;
+            rs[i].b = ray[i].a + ray[i].b * omax;
+        }
+
+        return( rs );
+    };
+
+    this.intersect_ray = _intersect_Intervals;
+
+	/* non-recursive internal search function
+	 * [ nodes | objects ] = _search_subtree(intervals, [return node data], [array to fill], root to begin search at)
+	 * @private
+	 */
+	var _intersect_subtree = function(options) {
+		var hit_stack = []; // Contains the elements that overlap
+		var ray = options.ray;
+		var return_node = options.return_nodes;
+		var return_array = options.return_array;
+		var root = options.root;
+		var comparators = options.comparators;
+
+		if(_intersect_Intervals(ray, root.d) === false)
+		 return(return_array);
+
+		var load_callback = function(local_tree, local_node){
+			return(function(data) {
+				local_tree._attach_data(local_node, data);
+			});
+		};
+
+		hit_stack.push(root.nodes);
+
+		do {
+			var nodes = hit_stack.pop();
+
+			for(var i = nodes.length-1; i >= 0; i--) {
+				var ltree = nodes[i];
+			  if(_intersect_Intervals(ray, ltree.d) !== false) {
+			  	if("nodes" in ltree) { // Not a Leaf
+			  		hit_stack.push(ltree.nodes);
+			  	} else if("leaf" in ltree) { // A Leaf !!
+			  		if(!return_node)
+		  				return_array.push(ltree.leaf);
+		  			else
+		  				return_array.push(ltree);
+		  		}/*	else if("load" in ltree) { // We need to fetch a URL for some more tree data
+	  				jQuery.getJSON(ltree.load, load_callback(this, ltree));
+	  				delete ltree.load;
+	  			//	i++; // Replay this entry
+	  			}*/
+				}
+			}
+		}while(hit_stack.length > 0);
+
+		return(return_array);
+	};
+
+	/* non-recursive internal yield_to function
+	 * [ nodes | objects ] = _yield( options )
+	 * @private
+	 */
+	var _yield_to = function(options) {
+		var hit_stack = []; // Contains the nodes that overlap
+		var intervals = options.intervals;
+		var root = options.root;
+		var comparators = options.comparators;
+        var node = null;
+        var yield_leaf = options.yield.leaf;
+        var yield_node = options.yield.node;
+
+		if(!comparators.overlap_intervals(intervals, root.d))
+		 return;
+
+		hit_stack.push(root.nodes);
+
+		do {
+			var nodes = hit_stack.pop();
+
+			for(var i = nodes.length-1; i >= 0; i--) {
+				var ltree = nodes[i];
+			  if(comparators.overlap_intervals(intervals, ltree.d)) {
+			  	if("nodes" in ltree) { // Not a Leaf
+			  	    yield_node(ltree);
+			  		hit_stack.push(ltree.nodes);
+			  	} else if("leaf" in ltree) { // A Leaf !!
+			  		yield_leaf(ltree);
+		  		}
+			  }
+			}
+		}while(hit_stack.length > 0);
+
+		return;
+	};
+
+
+	/* non-recursive internal search function
 	 * [ nodes | objects ] = _search_subtree(intervals, [return node data], [array to fill], root to begin search at)
 	 * @private
 	 */
@@ -605,7 +781,78 @@ var NTree = function(dimensions, width){
 	this.dimensions = function() {
 		return _Dimensions;
 	}
-	
+
+	/* non-recursive intersect function
+	 * [ nodes | objects ] = NTree.intersect( options )
+	 * @public
+	 */
+	this.intersect = function(options) {
+		if(arguments.length < 1) {
+			throw "Wrong number of arguments. intersect() requires an options object."
+		}
+		if( !("return_nodes" in options) ) {
+			options.return_nodes = false; // obj == false for conditionals
+		}
+		if( !("return_array" in options) ) {
+			options.return_array = [];
+		}
+		if( !("ray" in options) ) {
+			throw "Wrong number of arguments. intersect() requires a ray."
+		}
+
+		options.root = _T; // should not ever be specified by outside
+
+		return( _intersect_subtree( options ) );
+	}; /* End of NTree.intersect() */
+
+	/* non-recursive yield_to function
+	 * NTree.yield_to( options )
+	 * @public
+	 */
+	this.yield_to = function( options ) {
+		if(arguments.length < 1) {
+			throw "Wrong number of arguments. yield_to() requires an options object."
+		}
+		if( !("return_nodes" in options) ) {
+			options.return_nodes = false; // obj == false for conditionals
+		}
+		if( !("return_array" in options) ) {
+			options.return_array = [];
+		}
+		if( !("comparators" in options) ) {
+			if( !("intervals" in options) ) { // If no comparator object is defined, you must define "intervals".
+				throw "Wrong number of options. yield_to() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+			} else if( options.intervals.length != _Dimensions ) {
+				throw "Wrong number of dimensions in input volume. The tree has a rank of " + _Dimensions + "-dimensions.";
+			}	else {
+				options.comparators = {};
+			}
+		}
+		if( !("overlap_intervals" in options["comparators"]) ) {
+			if( !("intervals" in options) ) { // If no default comparators are defined, you must define "intervals".
+				throw "Wrong number of options. yield_to() requires at least a set of intervals of " + _Dimensions + "-dimensions.";
+			} else if( options.intervals.length != _Dimensions ) {
+				throw "Wrong number of dimensions in input volume. The tree has a rank of " + _Dimensions + "-dimensions.";
+			} else {
+				options.comparators.overlap_intervals = _overlap_intervals; //Defaults
+			}
+		}
+
+		if( !("yield" in options) ) {
+    		options.yield = {};
+		}
+		if( !("leaf" in options["yield"]) ) {
+			options.yield.leaf = function(leaf){}; //Defaults
+		}
+		if( !("node" in options["yield"]) ) {
+			options.yield.node = function(node){}; //Defaults
+		}
+		options.root = _T; // should not ever be specified by outside
+
+		return( _yield_to( options ) );
+	}; /* End of NTree.yield_to() */
+
+
 	/* non-recursive search function 
 	 * [ nodes | objects ] = NTree.search(intervals, [return node data], [array to fill])
 	 * @public

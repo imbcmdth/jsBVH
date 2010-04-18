@@ -7,7 +7,7 @@
 <script type='text/javascript' src="../src/ntree.js"></script>
 </head>
 <body>
-	This test generate 20k squares over a an area several times larger than the canvas window. Once insertion has completely, the canvas begins scrolling diagonally. This test shows canvas rendering and event handling of a small subset (<300 objects) of a much larger dataset (20k objects) at interactive rates.<br/>
+	This test generate 20k squares into a 3-d area several times larger than the canvas window. Once insertion has completely, the canvas begins scrolling and rendering only the objects inside the view fustrum. This test shows canvas rendering and event handling of a small subset (~1000 objects) of a much larger dataset (20k objects) at interactive rates.<br/>
 	<canvas id="game" width="650px" height="500px">
 	</canvas>
 	<script type="text/javascript">
@@ -33,7 +33,7 @@ var canvwrap=(function(){
 
 	var canv=null,
 		canvctx=null,
-		rt=new NTree(2),
+		rt=new NTree(3),
 		layers={'main':0},
 		mouse={track:false,x:0,y:0},
 		mouseouts=[],
@@ -47,13 +47,14 @@ var canvwrap=(function(){
 	}
 	
 	canvasElement.prototype.attachEvent=function(action,func,layer){
-		canvwrap.attachEvent([{a:this.x,b:this.w},{a:this.y,b:this.h}],action,func,layer);
+		canvwrap.attachEvent({x:this.x,y:this.y,w:this.w,h:this.h},action,func,layer);
 	}
 	
 	canvasElement.prototype.toString=function(){ return '[CanvasElement]'; };
 		
 	function addIndex(bounds,id,action,func,layer, opts)
 	{
+//		var bounds = [{a:rect.x,b:rect.w},{a:rect.y,b:rect.h}];
 		if(!func) return;
 		if(!layer) layer='main'; 
 			
@@ -94,7 +95,7 @@ var canvwrap=(function(){
 
 	function treeSearch(x,y,w,h)
 	{
-		var results=rt.search({intervals:[{a:x,b:w},{a:y,b:h}]});
+		var results=rt.search({intervals:[{a:x,b:w},{a:y,b:h}, {a:0, b:4500}]});
 		if(results.length==0)
 			return [];
 		results.sort(sortRes);
@@ -265,7 +266,7 @@ var canv_off_x = 1237;
 var canv_del_x = 0;
 var canv_off_y = 931;
 var canv_del_y = 0;
-var zoom = 1;
+var zoom = 2;
 var zdel = 0.99; // speed of zoom
 zdel = 1.0;
 
@@ -279,21 +280,51 @@ function draw_nodes(context)
 	var temp_tree = canvwrap.getTree().get_tree();
 
 	context.strokeStyle = "rgb(0,0,0)";
-	context.lineWidth = border_width*zoom;
+	context.lineWidth = border_width;
 
 //	hit_stack.push(temp_tree.nodes);
 //	context.strokeRect(temp_tree.x, temp_tree.y, temp_tree.w, temp_tree.h);
-	
-	var elements = canvwrap.getTree().search({intervals:[{a:canv_off_x,b:context.canvas.width/zoom},{a:canv_off_y,b:context.canvas.height/zoom}], return_nodes:true});
+	var custom_comparators = {};
+	custom_comparators.overlap_intervals = function(a, b) { // crude 3-d projection
+		var d = a.length; 
+		var i, ret_val = true;
+		if( b.length != d ) ret_val = false; // Should probably be an error.
+		var z = 1+(((b[2].a+b[2].b)-zoom)/256);
+		var a0b = a[0].b * z;
+		var a0a = a[0].a - (a0b - a[0].b) / 2;
+		var a1b = a[1].b * z;
+		var a1a = a[1].a - (a1b - a[1].b) / 2;
+		ret_val = ret_val && (a0a < (b[0].a+b[0].b) && (a0a+a0b) > b[0].a);
+		ret_val = ret_val && (a1a < (b[1].a+b[1].b) && (a1a+a1b) > b[1].a);
+		ret_val = ret_val && (a[2].a < (b[2].a+b[2].b) && (a[2].a+a[2].b) > b[2].a);
+		return ret_val;
+	};
+	if(zoom < 2 || zoom > 250) zdel *= -1;
+	zoom+=zdel;
+
+	var camera = [{a:canv_off_x,b:context.canvas.width},{a:canv_off_y, b:context.canvas.height}, {a:0,b:256}];
+	var elements = canvwrap.getTree().search({intervals:camera, return_nodes:true, comparators:custom_comparators});
 	var to_draw = elements.length;
+
+
+function sortByZ(a, b){
+	return (a.d[2].a - b.d[2].a); 
+}
+elements.sort(sortByZ); // sort by z-order for "painters algorithm"
+
 if(window["console"] && console.time && fps_timer)
 		console.time("Draw Frame...");
 	while(elements.length >0)
 	{
 		var el = elements.pop();
-        context.strokeRect((el.d[0].a-canv_off_x)*zoom, (el.d[1].a-canv_off_y)*zoom, el.d[0].b*zoom, el.d[1].b*zoom);
-        context.fillStyle=el.leaf.color;
-        context.fillRect((el.d[0].a-canv_off_x)*zoom, (el.d[1].a-canv_off_y)*zoom, el.d[0].b*zoom, el.d[1].b*zoom);
+		var z = 1+((el.d[2].a-zoom)/256);
+		var off_w = (context.canvas.width - context.canvas.width / z) / 2;
+		var off_h = (context.canvas.height - context.canvas.height / z) / 2;
+		context.strokeRect((el.d[0].a-canv_off_x)/z+off_w, (el.d[1].a-canv_off_y)/z+off_h, el.d[0].b/z, el.d[1].b/z);
+		context.fillStyle=el.leaf.color;
+		context.fillRect((el.d[0].a-canv_off_x)/z+off_w, (el.d[1].a-canv_off_y)/z+off_h, el.d[0].b/z, el.d[1].b/z);
+	//	context.fillRect((el.d[0].a-canv_off_x)*zoom, (el.d[1].a-canv_off_y)*zoom, el.d[0].b*zoom, el.d[1].b*zoom);
+		//context.fillText(el.node.id+"", 	(el.x-canv_off_x+1)*zoom, (el.y-canv_off_y)*zoom);
 	}
 	if(window["console"] && console.timeEnd && fps_timer && !(fps_timer = false))
 		console.timeEnd("Draw Frame...");
@@ -366,21 +397,21 @@ if( canvwrap.getTree().get_tree().nodes.length == 0 )
 	var do_some_then_yield = function(){
 		var loops = 0;
 		var made = 0;
-		var bounds = [{a:(Math.random()*6000+20), b:(Math.random()*(100/scale_fact)+1)}, {a:(Math.random()*4000+7), b:(Math.random()*(100/scale_fact)+1)}];
-		var opts = {color:cols[(Math.random()*100).toFixed()%5]};
+		var bounds = [{a:(Math.random()*6000+20), b:(Math.random()*(100/scale_fact)+1)}, {a:(Math.random()*4000+7), b:(Math.random()*(100/scale_fact)+1)}, {a:(Math.random()*255+1), b:(Math.random()*100+1)}];
+		var opts =  {color:cols[(Math.random()*123).toFixed()%cols.length]};
 		while(test_damnit < 20000)
 		{
-			if(canvwrap.getTree().search({intervals:bounds}).length == 0)
+			if(canvwrap.getTree().search({intervals:[{a:bounds[0].a-border_width-(25/scale_fact), b:bounds[0].b+border_width*2+(50/scale_fact)}, {a:bounds[1].a-border_width-(25/scale_fact), b:bounds[1].b+border_width*2+(50/scale_fact)}, {a:bounds[2].a, b:bounds[2].b}]}).length == 0)
 			{
 				canvwrap.attachEvent(bounds,test_damnit,'mousedown', new_func, null, opts);
 				test_damnit++;
-				bounds = [{a:(Math.random()*6000+20), b:(Math.random()*(100/scale_fact)+1)}, {a:(Math.random()*4000+7), b:(Math.random()*(100/scale_fact)+1)}];
-				var opts = {color:cols[(Math.random()*123).toFixed()%cols.length]};
+				bounds = [{a:(Math.random()*6000+20), b:(Math.random()*(100/scale_fact)+1)}, {a:(Math.random()*4000+7), b:(Math.random()*(100/scale_fact)+1)}, {a:(Math.random()*255+1), b:(Math.random()*100+1)}];
+				var opts =  {color:cols[(Math.random()*123).toFixed()%cols.length]};
 				made++;
 			}
 			else
 			{
-				bounds = [{a:(Math.random()*6000+20), b:(Math.random()*(100/scale_fact)+1)}, {a:(Math.random()*4000+7), b:(Math.random()*(100/scale_fact)+1)}];		
+				bounds = [{a:(Math.random()*6000+20), b:(Math.random()*(100/scale_fact)+1)}, {a:(Math.random()*4000+7), b:(Math.random()*(100/scale_fact)+1)}, {a:(Math.random()*255+1), b:(Math.random()*100+1)}];	
 			}
 			loops++;
 			if(loops >= 500)
@@ -396,7 +427,7 @@ if( canvwrap.getTree().get_tree().nodes.length == 0 )
 	do_some_then_yield();
 }
 //canv_del_x = canv_del_y = -2;
-setInterval(function(){ if(zoom > 2 || zoom < 0.4) zdel = 1.0 / zdel; if(canv_off_x > 5400 || canv_off_x < 0) canv_del_x*=-1; if(canv_off_y > 3600 || canv_off_y < 0) canv_del_y*=-1; zoom *= zdel; canv_off_x += (canv_del_x/zoom); canv_off_y += (canv_del_y/zoom); draw();}, 30); // Yield to browser temporarily to suppress "script is taking too damn long!" alert
+setInterval(function(){ if(canv_off_x > 5400 || canv_off_x < 0) canv_del_x*=-1; if(canv_off_y > 3600 || canv_off_y < 0) canv_del_y*=-1; canv_off_x += (canv_del_x); canv_off_y += (canv_del_y); draw();}, 30); // Yield to browser temporarily to suppress "script is taking too damn long!" alert
 
 //ctx.drawImage(document.getElementById('test'), 0, 0, 50, 50, 200, 200, 50, 50);  // not possible without an intermediary
 

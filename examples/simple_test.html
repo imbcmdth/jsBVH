@@ -223,61 +223,41 @@ var canvwrap=(function(){
 	}
 	
 	function __mouseMove(e){
-		var xy=getXY(e);
-		xy.x = canv_off_x+xy.x/zoom;
-		xy.y = canv_off_y+xy.y/zoom;
-		
-		var results=treeSearch(xy.x,xy.y,1,1),
-			thrown=null,
-			entryfound=false;
-		var results_copy = results.slice(0, results.length);
-		var l_mouse_ins = []; // Holds new (mousein) elements
-		var l_mouse_moves = []; // holds all repeated  elements
-		// mouseouts will hold mouseouts
-		mouse.x=xy.x;
-		mouse.y=xy.y;
-		
-		// Seperate the elements from mouseouts + results into three arrays (in, out, move)
-		while(results.length > 0)
-		{
-			var current_results = results.pop();
+        var xy=getXY(e);
+        xy.x = canv_off_x+xy.x/zoom;
+        xy.y = canv_off_y+xy.y/zoom;
+        var context = canv.getContext('2d');
 
-			var m=0;
-			while(m<mouseouts.length)
-			{
-				if(mouseouts[m].id === current_results) //IF it was found in "results" then it is a move
-				{
-					l_mouse_moves.push(mouseouts.splice(m));
-					m-=1;
-					current_results = null;
-				}
-				m+=1;
-			}
-			if(current_results) //IF it wasn't found in "results" then it is new
-				l_mouse_ins.push(current_results);
-		}
-		
-		// now the three arrays contain the elements they should..
-		while(mouseouts.length>0)
-		{
-				var thrown=mouseouts.pop();
-				if(thrown.action['mouseout'])
-					thrown.func['mouseout']({x:xy.x,y:xy.y});
-		}
-		while(l_mouse_ins.length>0)
-		{
-				var thrown=l_mouse_ins.pop();
-				if(thrown.action['mouseover'])
-					thrown.func['mouseover']({x:xy.x,y:xy.y});
-		}
-		while(l_mouse_moves.length>0)
-		{
-				var thrown=l_mouse_moves.pop();
-				if(thrown.action['mousemove'])
-					thrown.func['mousemove']({x:xy.x,y:xy.y});
-		}
-		mouseouts = results_copy;
-	}
+        dirty_frame = true;
+        draw();
+        var nx = -800-xy.x;
+        var ny = -200-xy.y;
+        var l = Math.sqrt(nx*nx+ny*ny);
+        nx/=l;
+        ny/=l;
+        var ray = [{a:-800, b:nx},{a:-200, b:ny}];
+        var rs = canvwrap.getTree().intersect_ray(ray);
+        // If ray intersects, draw the resultant ray segment..
+        if(rs !== false){
+            // rs = rs.ray_segment;
+            var tested_objects = canvwrap.getTree().intersect({ray:ray, return_nodes:true});
+            if(tested_objects.length > 0)
+                context.strokeStyle = "rgb(250,50,50)";
+            else
+                context.strokeStyle = "rgb(50,170,50)";
+
+            for(var oi = 0; oi < tested_objects.length; oi++) {
+                var oii = tested_objects[oi].d;
+                context.strokeRect((oii[0].a-2-canv_off_x)*zoom, (oii[1].a-2-canv_off_y)*zoom, (oii[0].b+4)*zoom, (oii[1].b+4)*zoom);
+            }
+            context.beginPath();
+            context.moveTo((rs[0].a-canv_off_x)*zoom, (rs[1].a-canv_off_y)*zoom);
+            context.lineTo((rs[0].b-canv_off_x)*zoom, (rs[1].b-canv_off_y)*zoom);
+            context.closePath();
+            context.stroke();
+        }
+    }
+
 
 	function init(canvid, width, height)
 	{
@@ -293,6 +273,7 @@ var canvwrap=(function(){
 	//	canv.addEvent('mouseup',__mouseDown);
 	//	canv.addEvent('click',__mouseDown);
 	//	canv.addEvent('dblclick',__mouseDown);
+        canv.addEvent('mousemove',__mouseMove);
 		
 		if(canv.getContext)
 			canvctx=canv.getContext('2d');
@@ -318,9 +299,9 @@ function test(dir){
 	document.getElementById('status').innerHTML=dirarr[dir] + " was clicked!";
 }
 
-var canv_off_x = 0;
+var canv_off_x = -512;
 var canv_del_x = 0;
-var canv_off_y = 0;
+var canv_off_y = -384;
 var canv_del_y = 0;
 var zoom = 1;
 var zdel = 0.99; // speed of zoom
@@ -334,64 +315,81 @@ function draw_nodes(context)
 	var hit_stack = []; // Contains the local elements (at current tree depth) that overlap
 
 	var to_draw = 0;
-	var hit_stack = []; // Contains the elements that overlap
 	var T = canvwrap.getTree().get_tree();
-	var rect = [{a:canv_off_x, b:document.getElementById("game").width*zoom}, {a:canv_off_y, b:document.getElementById("game").height*zoom }];
+    var canv_width = document.getElementById("game").width;
+    var canv_height = document.getElementById("game").height;
+	var rect = [{a:canv_off_x, b:canv_width*zoom}, {a:canv_off_y, b:canv_height*zoom }];
 	context.strokeStyle = "rgb(0,0,0)";
-	context.lineWidth = 0.5;
-	context.strokeRect((T.d[0].a-canv_off_x)*zoom, (T.d[1].a-canv_off_y)*zoom, T.d[0].b*zoom, T.d[1].b*zoom);
-	context.strokeStyle = "rgb(0,0,0)";
-	context.lineWidth = border_width*zoom;
+	context.lineWidth = 1.4;
+	//context.lineWidth = border_width*zoom;
 
-	if(!NTree.Interval.overlap_intervals(rect, T.d))
-	 return(0);
+    // This "yielding" search function was a brilliant idea!
+    var nodes_to_draw = [];
+    var leafs_to_draw = []; // Hey *I* spell it that way!
 
-	hit_stack.push(T.nodes);
+    var yield = {
+        leaf: function(node) {
+            leafs_to_draw.push(node);
+        },
+        node: function(node) {
+            nodes_to_draw.push(node);
+        }
+    };
+	canvwrap.getTree().yield_to({intervals:rect, yield:yield});
 
-/*	if(window["console"] && console.time && fps_timer)
-			console.time("Draw Frame...");
-*/
-	do
-	{
-		var nodes = hit_stack.pop();
-		for(var i = nodes.length-1; i >= 0; i--)
-		{
-			var el = nodes[i];
-		  if(NTree.Interval.overlap_intervals(rect, el.d))
-		  {
-		  	if(el.nodes) // Not a Leaf
-		  	{
-		  		hit_stack.push(el.nodes);
-		  		if(draw_tree)
-		  		{
-			  		context.strokeStyle = "rgb(200,100,100)";
-						context.lineWidth = 0.33;
-						context.strokeRect((el.d[0].a-canv_off_x)*zoom, (el.d[1].a-canv_off_y)*zoom, el.d[0].b*zoom, el.d[1].b*zoom);
-						
-						//return to old style
-						context.strokeStyle = "rgb(0,0,0)";
-						context.lineWidth = border_width*zoom;
-			  		to_draw++;
-					}
-			  }
-		  	else // A Leaf !!
-		  	{
-//		  		if(!draw_tree)
-//		  		{
-			  		to_draw++;
-						context.strokeRect((el.d[0].a-canv_off_x)*zoom, (el.d[1].a-canv_off_y)*zoom, el.d[0].b*zoom, el.d[1].b*zoom);
-						context.fillStyle=el.leaf.color;
-						context.fillRect((el.d[0].a-canv_off_x)*zoom, (el.d[1].a-canv_off_y)*zoom, el.d[0].b*zoom, el.d[1].b*zoom);
-//					}
-	  		}
-			}
-		}
-	}while(hit_stack.length > 0);
+  /*      for(var i = nodes_to_draw.length-1; i>=0; i--) {
+            node = nodes_to_draw[i];
+           if(node.x == 0) {
+             context.strokeStyle = "rgba(50,50,255,0.15)";
+          //   context.fillStyle = "rgba(155,155,255,0.1)";
+          //   context.fillRect(0*zoom, 0*zoom, (node.il-canv_off_x)*zoom, canv_height*zoom);
+             context.strokeRect(0*zoom, 0*zoom, (node.il-canv_off_x)*zoom, canv_height*zoom);
 
-/*	if(window["console"] && console.timeEnd && fps_timer && !(fps_timer = false))
-		console.timeEnd("Draw Frame...");
-*/
-	return(to_draw);
+             context.strokeStyle = "rgba(255,50,50,0.15)";
+         //    context.fillStyle = "rgba(225,155,155,0.1)";
+        //     context.fillRect((node.ir+canv_off_x)*zoom, 0*zoom, canv_width*zoom, canv_height*zoom);
+             context.strokeRect((node.ir+canv_off_x)*zoom, 0*zoom, canv_width*zoom, canv_height*zoom);
+       // if( node.ir-1 > node.il+1 ) {
+      //    context.fillStyle = "rgba(255,255,255,1)";
+      //     context.fillRect(node.il+1*zoom, canv_off_y*zoom, (node.ir-node.il)-1*zoom, canv_height*zoom);
+     //  }
+           } else if(node.x == 1) {
+             context.strokeStyle = "rgba(50,50,255,0.15)";
+       //      context.fillStyle = "rgba(155,155,255,0.1)";
+       //      context.fillRect(0*zoom, 0*zoom, canv_width*zoom, (node.il-canv_off_y)*zoom);
+             context.strokeRect(0*zoom, 0*zoom, canv_width*zoom, (node.il-canv_off_y)*zoom);
+
+             context.strokeStyle = "rgba(255,50,50,0.15)";
+        //     context.fillStyle = "rgba(225,155,155,0.1)";
+        //     context.fillRect(0*zoom, (node.ir+canv_off_y)*zoom, canv_width*zoom, canv_height*zoom);
+             context.strokeRect(0*zoom, (node.ir+canv_off_y)*zoom, canv_width*zoom, canv_height*zoom);
+      //  if( node.ir > node.il ) {
+     //      context.fillStyle = "rgba(255,255,255,1)";
+      //     context.fillRect(canv_off_x*zoom, node.il*zoom, canv_width*zoom, (node.ir-node.il)*zoom);
+     //   }
+           }
+       }    */
+
+     for(var i = leafs_to_draw.length-1; i>=0; i--) {
+        node = leafs_to_draw[i];
+        to_draw++;
+        context.strokeRect((node.d[0].a-canv_off_x)*zoom, (node.d[1].a-canv_off_y)*zoom, node.d[0].b*zoom, node.d[1].b*zoom);
+        context.fillStyle=node.leaf.color;
+        context.fillRect((node.d[0].a-canv_off_x)*zoom, (node.d[1].a-canv_off_y)*zoom, node.d[0].b*zoom, node.d[1].b*zoom);
+     }
+
+    if(canvwrap.getTree().envelope()){
+        var scene_bb = canvwrap.getTree().envelope();
+        context.strokeStyle = "rgb(50,50,50)";
+        context.strokeRect((scene_bb[0].a-canv_off_x)*zoom, (scene_bb[1].a-canv_off_y)*zoom, scene_bb[0].b*zoom, scene_bb[1].b*zoom);
+    }
+
+/*        if(canvwrap.getTree().last_bb()){
+            var last_bb = canvwrap.getTree().last_bb();
+            context.strokeStyle = "rgb(50,50,50)";
+            context.strokeRect(last_bb[0].a*zoom, last_bb[1].a*zoom, last_bb[0].b*zoom, last_bb[1].b*zoom);
+         }*/
+    return(to_draw);
 }
 
 
@@ -421,7 +419,6 @@ function draw(){
 q=0;
 var test_damnit = 0;
 
-
 // LOAD PRE-BUILT TREE
 
 //console.log(canvwrap.getTree().set_tree(OBJ_TREE_20K)); test_damnit = 20000; canv_del_x = canv_del_y = -2;
@@ -430,31 +427,32 @@ if( canvwrap.getTree().get_tree().nodes.length == 0 )
 {
 	var do_some_then_yield = function(){
 		var loops = 0; var yy= (Math.random()*10);
-		var bounds = [{a:(Math.random()*969), b:(Math.random()*25+5)}, {a:yy*30+50, b:(Math.random()*25+5)}];
+		var bounds = [{a:(Math.random()*950)-490, b:(Math.random()*50+1)}, {a:(Math.random()*700)-360, b:(Math.random()*50+1)}];
 		var opts = {color:cols[(Math.random()*100).toFixed()%cols.length]};
-		while(test_damnit < 20)
+		while(test_damnit < 500)
 		{
-			if(canvwrap.getTree().search({intervals:bounds}).length == 0)
-			{
+		//	if(canvwrap.getTree().search({intervals:bounds}).length == 0)
+	//		{
 				canvwrap.attachEvent(bounds,test_damnit,'mousedown', new_funcs, null, opts);
 				test_damnit++;
 				yy= (Math.random()*20);
-				bounds = [{a:(Math.random()*969), b:(Math.random()*25+5)}, {a:yy*30+50, b:(Math.random()*25+5)}];
+				bounds = [{a:(Math.random()*950)-490, b:(Math.random()*50+1)}, {a:(Math.random()*700)-360, b:(Math.random()*50+1)}];
 				var opts = {color:cols[(Math.random()*123).toFixed()%cols.length]};
-			}
+		/*	}
 			else
 			{
 				yy= (Math.random()*20);
-				bounds = [{a:(Math.random()*969), b:(Math.random()*25+5)}, {a:yy*30+50, b:(Math.random()*25+5)}];		
-			}
+				bounds = [{a:(Math.random()*95  0)-490, b:(Math.random()*50+1)}, {a:(Math.random()*700)-360, b:(Math.random()*50+1)}];
+			}  */
 			loops++;
-			if(loops >= 1)
+			if(loops >= 100)
 			{
-				dirty_frame = true;
-				setTimeout(do_some_then_yield, 250);
+                dirty_frame = true;
+				setTimeout(do_some_then_yield, 50);
 				return;
 			}
 		}
+        dirty_frame = true;
 		//clearInterval(draw_timer);
 		//canv_del_x = canv_del_y = -2;
 	};
