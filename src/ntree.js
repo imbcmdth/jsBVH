@@ -570,29 +570,13 @@ var NTree = function(dimensions, width){
         }
 
         var omin, omax, tmin, tmax;
-        var tmin_a, tmin_b, tmax_a, tmax_b;
 
         omin = (parameters[sign[0]][0] - ray[0].a) * inv_direction[0];
         omax = (parameters[1-sign[0]][0] - ray[0].a) * inv_direction[0];
 
-    //if(isNaN(omin) || isNaN(omax)) throw "o1: NAN!";
-
-    /*    tmin_a = Math.min(omin, Infinity); tmin_b = Math.max(omin, -Infinity);
-        tmax_a = Math.min(omax, Infinity); tmax_b = Math.max(omax, -Infinity);
-        omin = Math.min(tmin_a, tmin_b);
-        omax = Math.max(tmax_a, tmax_b);    */
-
-
         for( i = 1; i < _Dimensions; i++ ) {
             tmin = (parameters[sign[i]][i] - ray[i].a) * inv_direction[i];
             tmax = (parameters[1-sign[i]][i] - ray[i].a) *inv_direction[i];
-
-    //if(isNaN(tmin) || isNaN(tmax) || isNaN(inv_direction[i])) throw "t: NAN!";
-
-    /*        tmin_a = Math.min(tmin, Infinity); tmin_b = Math.max(tmin, -Infinity);
-            tmax_a = Math.min(tmax, Infinity); tmax_b = Math.max(tmax, -Infinity);
-            tmin = Math.min(tmin_a, tmin_b);
-            tmax = Math.max(tmax_a, tmax_b);  */
 
             if ( (omin > tmax) || (tmin > omax) ) {
                 return false;
@@ -603,15 +587,14 @@ var NTree = function(dimensions, width){
             if (tmax < omax) {
                 omax = tmax;
             }
-    //if(isNaN(omin) || isNaN(omax)) throw "o2: NAN!";
         }
 
         if( omin >= Infinity || omax <= -Infinity )
         {
-      //      throw "Gevalt!";
             return false;
         }
-       // return true;
+        if( omin < 0 && omax < 0) return false;
+        if( omin < 0 ) omin = 0;
         var rs = _make_Empty();
 
         for( i = 0; i < _Dimensions; i++ ) {
@@ -652,14 +635,16 @@ var NTree = function(dimensions, width){
 
 			for(var i = nodes.length-1; i >= 0; i--) {
 				var ltree = nodes[i];
-			  if(_intersect_Intervals(ray, ltree.d) !== false) {
+                var intersect_points = _intersect_Intervals(ray, ltree.d);
+			  if(intersect_points !== false) {
 			  	if("nodes" in ltree) { // Not a Leaf
 			  		hit_stack.push(ltree.nodes);
 			  	} else if("leaf" in ltree) { // A Leaf !!
+                    var tmin = (intersect_points[0].a-ray[0].a)/ray[0].b;
 			  		if(!return_node)
-		  				return_array.push(ltree.leaf);
+		  				return_array.push({intersect:tmin, object:ltree.leaf});
 		  			else
-		  				return_array.push(ltree);
+		  				return_array.push({intersect:tmin, object:ltree});
 		  		}/*	else if("load" in ltree) { // We need to fetch a URL for some more tree data
 	  				jQuery.getJSON(ltree.load, load_callback(this, ltree));
 	  				delete ltree.load;

@@ -8,7 +8,7 @@
 	The black outline is the tree's root node. Each pink outline is a sub-node.<br/>
 	Click on a rectangle to delete it and see the result in the N-Tree. <br/>
 	Click on any blank area to create a new rectangle and add it to the N-Tree.<br/>
-	<canvas id="game" width="1000px" height="500px" style="border:1px solid blue;"> 
+	<canvas id="game" width="1024px" height="768px" style="border:1px solid blue;"> 
 	</canvas>
 <script>
 var new_funcs = function(e){canvwrap.getTree().remove({intervals:[{a:e.x,b:1},{a:e.y,b:1}]});};
@@ -230,17 +230,22 @@ var canvwrap=(function(){
 
         dirty_frame = true;
         draw();
-        var nx = -800-xy.x;
-        var ny = -200-xy.y;
+        var nx = 0+xy.x;
+        var ny = 0+xy.y;
         var l = Math.sqrt(nx*nx+ny*ny);
         nx/=l;
         ny/=l;
-        var ray = [{a:-800, b:nx},{a:-200, b:ny}];
+        var ray = [{a:0, b:nx},{a:0, b:ny}];
+        var time1 = 0;
+
         var rs = canvwrap.getTree().intersect_ray(ray);
+
         // If ray intersects, draw the resultant ray segment..
         if(rs !== false){
             // rs = rs.ray_segment;
+            var starttime = (new Date).getTime();
             var tested_objects = canvwrap.getTree().intersect({ray:ray, return_nodes:true});
+            time1 = (new Date).getTime() - starttime;
             if(tested_objects.length > 0)
                 context.strokeStyle = "rgb(250,50,50)";
             else
@@ -256,6 +261,7 @@ var canvwrap=(function(){
             context.closePath();
             context.stroke();
         }
+        ctx.fillText("Time to Intersect Volume: " + time1 + " ms", 	10, 10);
     }
 
 
@@ -410,7 +416,7 @@ function draw(){
 	
 		ctx.clearRect(0, 0, 160, 40);
 		ctx.fillStyle="rgb(0,0,0)";
-		ctx.fillText("# of Elements on Screen: " + drawn, 	10, 10);
+//		ctx.fillText("# of Elements on Screen: " + drawn, 	10, 10);
 		ctx.fillText("# of Elements in Tree: " + test_damnit, 10, 20);
 		ctx.fillText("-= " + col_name +" =-", 10, 30);
 	}
@@ -427,28 +433,28 @@ if( canvwrap.getTree().get_tree().nodes.length == 0 )
 {
 	var do_some_then_yield = function(){
 		var loops = 0; var yy= (Math.random()*10);
-		var bounds = [{a:(Math.random()*950)-490, b:(Math.random()*50+1)}, {a:(Math.random()*700)-360, b:(Math.random()*50+1)}];
+		var bounds = [{a:(Math.random()*950)-490, b:(Math.random()*5+1)}, {a:(Math.random()*700)-360, b:(Math.random()*5+1)}];
 		var opts = {color:cols[(Math.random()*100).toFixed()%cols.length]};
-		while(test_damnit < 500)
+		while(test_damnit < 10000)
 		{
 		//	if(canvwrap.getTree().search({intervals:bounds}).length == 0)
 	//		{
 				canvwrap.attachEvent(bounds,test_damnit,'mousedown', new_funcs, null, opts);
 				test_damnit++;
 				yy= (Math.random()*20);
-				bounds = [{a:(Math.random()*950)-490, b:(Math.random()*50+1)}, {a:(Math.random()*700)-360, b:(Math.random()*50+1)}];
+				bounds = [{a:(Math.random()*950)-490, b:(Math.random()*5+1)}, {a:(Math.random()*700)-360, b:(Math.random()*5+1)}];
 				var opts = {color:cols[(Math.random()*123).toFixed()%cols.length]};
 		/*	}
 			else
 			{
 				yy= (Math.random()*20);
-				bounds = [{a:(Math.random()*95  0)-490, b:(Math.random()*50+1)}, {a:(Math.random()*700)-360, b:(Math.random()*50+1)}];
+				bounds = [{a:(Math.random()*95)-490, b:(Math.random()*5+1)}, {a:(Math.random()*700)-360, b:(Math.random()*5+1)}];
 			}  */
 			loops++;
-			if(loops >= 100)
+			if(loops >= 1000)
 			{
                 dirty_frame = true;
-				setTimeout(do_some_then_yield, 50);
+				setTimeout(do_some_then_yield, 250);
 				return;
 			}
 		}
