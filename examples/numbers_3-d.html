@@ -1,11 +1,11 @@
 <html>
 <head>
-	<title>N-Tree for Javascript - Just the numbers</title>
+	<title>BVH for Javascript - Just the numbers</title>
 	<script src="../libs/jquery.min.js"></script>
-	<script src="../src/ntree.js"></script>
+	<script src="../src/jsbvh.js"></script>
 	<script>
 		$(document).ready(function() {
-			var rt = new NTree(3, 32);
+			var rt = new jsBVH(3, 32);
 			var deleted_set = new Array();
 			var test_name = ['Inserting 10k elements..','Performing 1k window queries..','Inserting 10k more elements..','Performing 1k window queries..','Deleting 1k elements..','Reinserting the deleted 1k elements..','Performing 1k window queries..'];
 			var test_func = new Array(7);
@@ -92,7 +92,7 @@
 				test_func[ti](10000);
 				var diff = (new Date).getTime() - start;
 				$('<div>Time To Run: '+diff+'ms</div>').appendTo($("#"+results_name));
-				$('<div>Number of Elements in Tree: '+rt.search({intervals:[{a:-1, b:100600},{a:-1, b:100600}, {a:-1, b:100600}]}).length+'</div>').appendTo($("#"+results_name));
+				$('<div>Number of Elements in the tree: '+rt.search({intervals:[{a:-1, b:100600},{a:-1, b:100600}, {a:-1, b:100600}]}).length+'</div>').appendTo($("#"+results_name));
 				ti+=1;
 				if(ti < 7) { 
 					setTimeout(yield_some, 1000);
@@ -113,7 +113,7 @@
 	</style>
 </head>
 <body>
-<h1>Raw freaking N-Tree numbers!</h1>
+<h1>Raw freaking BVH numbers!</h1>
 <p>Note the faster searches after re-insertion of the same elements that were deleted.</p>
 <div id="results">
 </div>

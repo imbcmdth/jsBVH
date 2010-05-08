@@ -1,5 +1,5 @@
 /****************************************************************************** 
-	ntree.js - General-Purpose Non-Recursive Bounding-Volume Hierarchy Library
+	jsBVH.js - General-Purpose Non-Recursive Bounding-Volume Hierarchy Library
 	Version 0.2.1, April 3rd 2010
 
   Copyright (c) 2010 Jon-Carlos Rivera
@@ -30,7 +30,7 @@ var isArray = function(o) {
  * NTree - A simple n-tree structure for great results.
  * @constructor
  */
-var NTree = function(dimensions, width){
+var jsBVH = function(dimensions, width){
 	// Variables to control tree
 	
 	// Number of "interval pairs" per node
@@ -978,5 +978,18 @@ var NTree = function(dimensions, width){
 			return(_remove_subtree.apply(this, [options]));
 		}
 	}; /* End of NTree.remove() */
+	
+	this.toJSON = function(){
+		if(_T) return(JSON.stringify(_T));
+	};
+
+	this.makeTree = function(obj){
+		if(obj) _T = obj;
+	};
+	
+	this.fromJSON = function(json){
+		var temp = JSON.parse(json);
+		if(temp) _T = temp;
+	};
 	
 }; /* End of NTree */

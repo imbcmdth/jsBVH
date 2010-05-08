@@ -2,14 +2,14 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ko">
 <head>
 <meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
-<title>JSSpec results</title>
+<title>jsBVH - JSSpec Test Suite</title>
 <link rel="stylesheet" type="text/css" href="../jsspec/JSSpec.css" />
 <script type="text/javascript" src="../jsspec/diff_match_patch.js"></script>
 <script type="text/javascript" src="../jsspec/JSSpec.js"></script>
-<script type="text/javascript" src="../src/ntree.js"></script>
+<script type="text/javascript" src="../src/jsbvh.js"></script>
 <script type="text/javascript">// <![CDATA[
-var nt = new NTree(2);
-describe('NTree Creation', {
+var nt = new jsBVH(2);
+describe('jsBVH Creation', {
     'Insert 1k 2-D Objects': function() {
     		var i = 1000;
 				while(i > 0) {
@@ -29,7 +29,7 @@ describe('NTree Creation', {
         value_of(nt.search({intervals:[{a:0,b:10600},{a:0,b:10600}]}).length).should_be(2000);
     }
 })
-describe('NTree Searching', {
+describe('jsBVH Searching', {
     '1k Out-of-Bounds Searches': function() {
     		var i = 1000;
     		var len = 0;
@@ -52,13 +52,13 @@ describe('NTree Searching', {
     }
 })
 var g_len = 0;
-describe('NTree Deletion', {
-    'Delete Half the RTree': function() {
+describe('jsBVH Deletion', {
+    'Delete Half the jsBVH': function() {
 				var bounds = [{a:5000, b:5500}, {a:0, b:10500}];
 				g_len += nt.remove({intervals:bounds}).length;
         value_of(g_len).should_not_be(0);
     },
-    'Delete the Other Half of the RTree': function() {
+    'Delete the Other Half of the jsBVH': function() {
 				var bounds = [{a:0, b:5500}, {a:0, b:10500}];
 				g_len += nt.remove({intervals:bounds}).length;
         value_of(g_len).should_be(2000);

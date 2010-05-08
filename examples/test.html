@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Slowdowns.. bleh</title>
+<title>OOO Colors!</title>
 </head>
 <body>
 	<canvas style="margin-top: 100px;" id="game" width="650px" height="475px">
 	</canvas>
-	<script type="text/javascript" src="../src/ntree.js"></script>
+	<script type="text/javascript" src="../src/jsbvh.js"></script>
 	<script type="text/javascript">
 CanvasWrapper=function(canvasid,width,height){
 
 	var canv=null,
 		canvctx=null,
-		nt=new NTree(2),
+		nt=new jsBVH(2),
 		layers={'main':0},
 		mouse={track:false,x:0,y:0},
 		old_results = []; // Holds old mousing elements (for _mouseMove)
@@ -44,8 +44,8 @@ CanvasWrapper=function(canvasid,width,height){
 		if(!layer) layer='main';
 		
 		// Get all overlapping objects from the tree
-		var local_objs = treeSearch(bounds);
 		var new_obj = true;
+/*		var local_objs = treeSearch(bounds);
 
 		// Look for an existing object with our same ID
 		while(local_objs.length > 0)
@@ -56,7 +56,7 @@ CanvasWrapper=function(canvasid,width,height){
 				new_obj = false;
 				break;
 			}
-		}
+		}*/
 		// If no object was found, make a new one...
 		if(new_obj) obj = {"func":{}, "action":{}, "bounds":{}, "id":id};
 		
@@ -100,12 +100,14 @@ CanvasWrapper=function(canvasid,width,height){
 		var ret_array = [], a_found_in_b = false;
 		for(var ai = 0; ai < a_len; ai++)	{
 			for(var bi = 0; bi < b_len; bi++)	{
-				if(A[ai] === B[bi])
-					a_found_in_b = true;
+				if(A[ai] === B[bi]) {
+					bi = b_len+1;
+					continue;
+				}
 			}
-			if(!a_found_in_b)
+			if(bi <= b_len) {
 				ret_array.push(A[ai]);
-			a_found_in_b = false;
+			} 
 		}
 		return(ret_array);
 	}
@@ -139,6 +141,17 @@ CanvasWrapper=function(canvasid,width,height){
 					thrown.func['mousemove'].apply(thrown, [thrown.bounds['mousemove'].x,thrown.bounds['mousemove'].y]);
 		}
 	}
+
+	function draw(){
+		old_results
+		ctx.fillStyle="rgba(255,255,255,0.2)";
+		ctx.fillRect (0,0,1000,800);	
+		for(var i = 0; i < old_results.length; i++){
+			old_results[i].func['mouseover'].apply(old_results[i], [old_results[i].bounds['mouseover'].x,old_results[i].bounds['mouseover'].y]);
+		}
+		setTimeout(draw, 33);
+	}
+	draw();
 	
 	function getXY(e) {
 		var posx = 0;
@@ -156,32 +169,37 @@ CanvasWrapper=function(canvasid,width,height){
 		}
 		posx=posx-canv.offsetLeft;
 		posy=posy-canv.offsetTop;
-		return {x:posx,y:posy, w:1, h:1};
+		return {x:posx-16,y:posy-16, w:32, h:32};
 	}
 }
 
 
 var ctx=document.getElementById('game').getContext('2d');
 
-var test=new CanvasWrapper("game",650,475);
-
-var cols=['red','blue','green','orange','yellow','silver'];
-var x=0,y=0,w=10,h=10;
-for(var i=0;i<8000;i++)
-{
-	x=rnd(5,600);
-	y=rnd(5,450);
-	test.insertIndex({x:x,y:y,w:w,h:h},"box"+i,'mouseover',highlight);
-	test.insertIndex({x:x,y:y,w:w,h:h},"box"+i,'mouseout',function(b,c){setTimeout(function(){ctx.fillStyle="grey";ctx.fillRect(b,c,w,h);},500)});
-	ctx.fillStyle="grey";
-	ctx.fillRect(x,y,w,h);
-}
+var test=new CanvasWrapper("game",1000,800);
 var m=0;
-function highlight(x,y)
+var cols=['#F00','#0F0','#00F','orange','yellow'];
+var x=0,y=0,w=2,h=2;
+for(var yi=0;yi<800/h;yi++)
 {
-	ctx.fillStyle=cols[m++>4?m=0:m];
-	ctx.fillRect(x,y,w,h);
+	y=yi*h;
+	m%=3;
+	for(var xi=0;xi<1000/w;xi++)
+	{
+		x=xi*w;
+		test.insertIndex({x:x,y:y,w:w,h:h},"box"+xi*yi,'mouseover',(function(lm){
+			return function(x,y){
+				ctx.fillStyle=cols[lm];
+				ctx.fillRect(x,y,w,h);
+			};
+		})(m>=4?(m=0):++m));
+//		test.insertIndex({x:x,y:y,w:w,h:h},"box"+xi*yi,'mouseout',function(b,c){setTimeout(function(){ctx.fillStyle="grey";ctx.fillRect(b,c,w,h);},500)});
+	//	ctx.fillStyle="grey";
+	//	ctx.fillRect(x,y,w,h);
+	}
 }
+
+
 /*
 w=100;
 h=100;
@@ -191,7 +209,6 @@ ctx.fillRect(100,100,100,100);
 test.insertIndex({x:100,y:100,w:100,h:100},'id','mouseout',function(){setTimeout(function(){ctx.fillStyle="white";ctx.fillRect(100,100,100,100);},60)});
 test.insertIndex({x:100,y:100,w:100,h:100},'id','mouseover',function(){highlight(100,100);});
 */
-
 function rnd(min,max){ return Math.floor(Math.random()*max+min); }
 	</script>
 </body>

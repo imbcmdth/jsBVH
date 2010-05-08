@@ -2,12 +2,12 @@
 <html>
 <head>
 <title>More Canvas Fun</title>
-<script type='text/javascript' src="../src/ntree.js"></script>
+<script type='text/javascript' src="../src/jsbvh.js"></script>
 </head>
 <body>
 	The black outline is the tree's root node. Each pink outline is a sub-node.<br/>
-	Click on a rectangle to delete it and see the result in the N-Tree. <br/>
-	Click on any blank area to create a new rectangle and add it to the N-Tree.<br/>
+	Click on a rectangle to delete it and see the result in the BVH. <br/>
+	Click on any blank area to create a new rectangle and add it to the BVH.<br/>
 	<canvas id="game" width="1024px" height="768px" style="border:1px solid blue;"> 
 	</canvas>
 <script>
@@ -74,7 +74,7 @@ var canvwrap=(function(){
 
 	var canv=null,
 		canvctx=null,
-		nt=new NTree(2),
+		nt=new jsBVH(2),
 		layers={'main':0},
 		mouse={track:false,x:0,y:0},
 		mouseouts=[],
@@ -252,7 +252,7 @@ var canvwrap=(function(){
                 context.strokeStyle = "rgb(50,170,50)";
 
             for(var oi = 0; oi < tested_objects.length; oi++) {
-                var oii = tested_objects[oi].d;
+                var oii = tested_objects[oi].object.d;
                 context.strokeRect((oii[0].a-2-canv_off_x)*zoom, (oii[1].a-2-canv_off_y)*zoom, (oii[0].b+4)*zoom, (oii[1].b+4)*zoom);
             }
             context.beginPath();

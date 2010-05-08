@@ -4,7 +4,7 @@
 <title>More Canvas Fun</title>
 <script type='text/javascript' src='../libs/firebug-lite-compressed.js'></script>
 <script type='text/javascript' src="../libs/jquery.min.js"></script>
-<script type='text/javascript' src="../src/ntree.js"></script>
+<script type='text/javascript' src="../src/jsbvh.js"></script>
 </head>
 <body>
 	This test generate 20k squares over a an area several times larger than the canvas window. Once insertion has completely, the canvas begins scrolling diagonally. This test shows canvas rendering and event handling of a small subset (<300 objects) of a much larger dataset (20k objects) at interactive rates.<br/>
@@ -33,7 +33,7 @@ var canvwrap=(function(){
 
 	var canv=null,
 		canvctx=null,
-		rt=new NTree(2),
+		rt=new jsBVH(2),
 		layers={'main':0},
 		mouse={track:false,x:0,y:0},
 		mouseouts=[],
