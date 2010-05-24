@@ -1,5 +1,6 @@
-jsBVH
+MIT Licensed
 
-A Bounding-Volume Heirarchy library in pure javascript. No dependancies.
+A non-recursive Bounding-Volume Hierarchy library in pure
+JavaScript with no dependencies.
 
 TODO: Make More ReadMe
